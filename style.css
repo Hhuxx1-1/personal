@@ -7,7 +7,7 @@
 }
 
 body {
-    background-color: #f5f5f5;
+    background: linear-gradient(15deg, #232323 10%, #aaaaaa 60%, white);
     color: #333;
     line-height: 1.6;
 }
@@ -17,6 +17,7 @@ body {
     margin: 0 auto;
     padding: 2rem;
     text-align: center;
+    height: 100vh;
 }
 
 /* Profile section */
@@ -25,13 +26,8 @@ body {
 }
 
 .profile-img {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 5px solid #fff;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 1rem;
+    width: 200px;
+    height: 200px;
 }
 
 .name {
@@ -93,6 +89,55 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Traits List Styles */
+.traits-list {
+    list-style: none;
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 0;
+}
+
+.trait-item {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+    transition: transform 0.3s ease;
+}
+
+.trait-item:hover {
+    transform: translateY(-3px);
+}
+
+.trait-content {
+    margin-left: 1rem;
+}
+
+.trait-content h3 {
+    color: #0066cc;
+    margin-bottom: 0.5rem;
+}
+
+.trait-content p {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.icon {
+    font-size: 1.5rem;
+    color: #0066cc;
+    margin-top: 0.3rem;
+}
+
+.description h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #333;
+    font-size: 1.8rem;
+}
 /* Responsive adjustments */
 @media (max-width: 600px) {
     .links-list {
