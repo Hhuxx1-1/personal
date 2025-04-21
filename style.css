@@ -149,6 +149,13 @@ body {
     margin-left: 10px;
 }
 
+/* small Sub */
+.small-sub p {
+    font-style: italic;
+    font-size: small;
+    margin-bottom: 11px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
     .links-list {
