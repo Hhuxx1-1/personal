@@ -17,7 +17,6 @@ body {
     margin: 0 auto;
     padding: 2rem;
     text-align: center;
-    height: 100vh;
 }
 
 /* Profile section */
@@ -114,6 +113,7 @@ body {
 
 .trait-content {
     margin-left: 1rem;
+    width: 100%;
 }
 
 .trait-content h3 {
@@ -137,6 +137,10 @@ body {
     margin-bottom: 1.5rem;
     color: #333;
     font-size: 1.8rem;
+}
+
+.trait-item i {
+    margin: auto;
 }
 /* Responsive adjustments */
 @media (max-width: 600px) {
