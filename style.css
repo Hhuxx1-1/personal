@@ -110,11 +110,12 @@ h1,h2,h3,h4,h5,h6{
     display: flex;
     align-items: flex-start;
     transition: transform 0.3s ease;
+    background-image: linear-gradient(320deg, rgba(84, 30, 166, 0.19), rgba(24, 26, 27, 0.31) 15%);
 }
 
 .trait-item:hover {
     transform: translateY(-3px);
-    background: linear-gradient(320deg, #6925d0, #ffffffda 15%);
+    background: linear-gradient(320deg, #541ea6, rgba(24, 26, 27, 0.85) 15%);
 }
 
 .trait-content {
