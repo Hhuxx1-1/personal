@@ -43,7 +43,7 @@ h1,h2,h3,h4,h5,h6{
 
 .title {
     font-size: 1.2rem;
-    color: #666;
+    color: #c8c3bc;
     margin-bottom: 1.5rem;
 }
 
@@ -130,7 +130,7 @@ h1,h2,h3,h4,h5,h6{
 }
 
 .trait-content p {
-    color: #666;
+    color: #c8c3bc;
     font-size: 0.95rem;
 }
 
