@@ -1,0 +1,87 @@
+ <div class="links">
+            <ul class="links-list">
+                <li>
+                    <a href="#about" class="link-item">
+                        <i class="fas fa-user icon"></i>
+                        <span>About Me</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#projects" class="link-item">
+                        <i class="fas fa-code icon"></i>
+                        <span>Projects</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#blog" class="link-item">
+                        <i class="fas fa-pen icon"></i>
+                        <span>Blog</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#contact" class="link-item">
+                        <i class="fas fa-envelope icon"></i>
+                        <span>Contact</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="description">
+            <h2>About Me</h2>
+            <div class="small-sub">
+            <p>
+                I'm a creative person who loves building things for fun, especially games. I like having clear goals and plans, but I can adapt when things go wrong. 
+            </p>
+            <p>
+                I work well alone but enjoy collaborating with others as long as it feels balanced.
+            </p>
+            <p>
+                I’m curious about big ideas and love exploring stories, especially in anime and games.
+            </p>
+            <p>
+                I talk a lot, but I don’t usually express myself through writing or art. I'm proud that I made money from my games when I was 18.To me, 
+            </p>
+            <p><b>success means making things go the way I intended.</b></p>
+            </div>
+            <br>
+        </div>
+        <div class="description">
+            <h2>Traits</h2>
+            <ul class="traits-list">
+                <li class="trait-item">
+                    <i class="fas fa-search icon"></i>
+                    <div class="trait-content">
+                        <h3>Curious</h3>
+                        <p>explore the unknown, even god-level ideas.</p>
+                    </div>
+                </li>
+                <li class="trait-item">
+                    <i class="fas fa-user-friends icon"></i>
+                    <div class="trait-content">
+                        <h3>Independent but open</h3>
+                        <p>Value working alone for control, but also appreciate the beauty of mutual collaboration.</p>
+                    </div>
+                </li>
+                <li class="trait-item">
+                    <i class="fas fa-redo icon"></i>
+                    <div class="trait-content">
+                        <h3>Resilient</h3>
+                        <p>Bounce back from setbacks quickly and stay focused on the goal.</p>
+                    </div>
+                </li>
+                <li class="trait-item">
+                    <i class="fas fa-chess icon"></i>
+                    <div class="trait-content">
+                        <h3>Strategic</h3>
+                        <p>Love planning and having a clear path, even if you don't always follow rigid rules.</p>
+                    </div>
+                </li>
+                <li class="trait-item">
+                    <i class="fas fa-comment-dots icon"></i>
+                    <div class="trait-content">
+                        <h3>Expressive</h3>
+                        <p>I am a talker, a sharer, probably someone who enjoys explaining things or even teaching.</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
