@@ -71,3 +71,12 @@ body {
 .button-link:hover {
     background-color: #444;
 }
+
+.text-container{ 
+    max-width: 6rem;
+}
+
+p {
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
