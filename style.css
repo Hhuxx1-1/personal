@@ -103,6 +103,8 @@ p {
     color: #aaa;
     font-size: 0.9rem;
     opacity: 0.8;
+    justify-content: space-between;
+    height: 8dvh;
 }
 
 .scroll-indicator .arrow {
