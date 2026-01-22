@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dotsContainer = document.getElementById('carousel-dots');
     const prevBtn = document.querySelector('.carousel-arrow.prev');
     const nextBtn = document.querySelector('.carousel-arrow.next');
-
+    console.log("Check Button : ",prevBtn,nextBtn);
     // Create dots
     cards.forEach((_, i) => {
         const dot = document.createElement('div');
