@@ -114,6 +114,19 @@ p {
     animation: bounce 2s infinite;
 }
 
+.scroll-indicator .arrow::before,
+.scroll-indicator .arrow::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: solid #aaa;
+    border-width: 0 3px 3px 0;
+}
+.scroll-indicator .arrow::before { transform: rotate(45deg) translate(-10px, -10px); }
+.scroll-indicator .arrow::after { transform: rotate(45deg) translate(10px, -10px); animation: fade-pulse 2s infinite; }
+@keyframes fade-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
 @keyframes bounce {
     0%, 20%, 50%, 80%, 100% { transform: rotate(45deg) translateY(0); }
     40% { transform: rotate(45deg) translateY(10px); }
