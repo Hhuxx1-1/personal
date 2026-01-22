@@ -143,6 +143,72 @@ p {
     text-align: center;
 }
 
+/* Carousel Wrapper – centers and constrains width */
+.carousel-wrapper {
+    width: 100%;
+    max-width: 900px;          /* wider on desktop, still centered */
+    margin: 1.5rem auto;
+    overflow: hidden;          /* hides overflow during scroll */
+}
+
+/* Carousel Container – the scrollable area */
+.carousel {
+    display: flex;
+    gap: 1.5rem;               /* space between cards */
+    overflow-x: auto;          /* enables horizontal scroll */
+    scroll-snap-type: x mandatory;   /* snaps to each card */
+    scroll-behavior: smooth;   /* smooth momentum */
+    padding: 0 1rem;           /* breathing room on sides */
+    -webkit-overflow-scrolling: touch; /* smooth iOS momentum */
+    scrollbar-width: thin;     /* nicer scrollbar (optional) */
+    scrollbar-color: #444 #222;
+}
+
+/* Hide scrollbar visually but keep functionality */
+.carousel::-webkit-scrollbar {
+    height: 8px;
+}
+.carousel::-webkit-scrollbar-track {
+    background: #222;
+}
+.carousel::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+/* Individual Cards */
+.carousel-card {
+    flex: 0 0 85%;             /* ~85% width → peeks next card (mobile friendly) */
+    max-width: 380px;          /* cap card size on large screens */
+    scroll-snap-align: center; /* snap to center of card */
+    background: rgba(30, 30, 30, 0.7);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.carousel-card:hover {
+    transform: translateY(-8px); /* subtle lift on hover */
+}
+
+.card-img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    aspect-ratio: 16 / 9;     /* consistent thumbnail shape */
+    object-fit: cover;
+}
+
+/* Make cards full-width on very small screens */
+@media (max-width: 500px) {
+    .carousel-card {
+        flex: 0 0 92%;
+    }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .section { padding: 1rem; }
