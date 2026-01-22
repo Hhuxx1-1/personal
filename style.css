@@ -128,9 +128,25 @@ p {
 .scroll-indicator .arrow::after { transform: translate(-50%, 0%); }
 @keyframes fade-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
 
+.channel-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+    margin: 2rem 0;
+}
+
+.channel-grid > div {
+    background: rgba(30,30,30,0.6);
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .section { padding: 1rem; }
     .button-link { min-width: 100%; }
     .scroll-indicator { bottom: 20px; font-size: 0.8rem; }
 }
+
