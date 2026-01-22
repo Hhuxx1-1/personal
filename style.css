@@ -202,6 +202,15 @@ p {
     object-fit: cover;
 }
 
+.carousel-card a {
+    background: #000000;
+    color:#ffffff;
+    padding:6px;
+    border-radius:6px;
+    text-decoration:none;
+    width:100%;
+}
+
 /* Make cards full-width on very small screens */
 @media (max-width: 500px) {
     .carousel-card {
