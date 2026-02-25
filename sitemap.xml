@@ -1,1 +1,13 @@
-<url><loc>https://hux.my.id/favicon.ico</loc></url>
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://hux.my.id/</loc>          <!-- or https://hux.my.id/index.html if you prefer explicit -->
+    <lastmod>2026-02-25</lastmod>         <!-- optional: YYYY-MM-DD format; today's date or when you last updated -->
+    <changefreq>monthly</changefreq>      <!-- optional: always, hourly, daily, weekly, monthly, yearly, never -->
+    <priority>1.0</priority>              <!-- optional: 0.0 to 1.0; 1.0 = highest -->
+  </url>
+    <url><loc>https://hux.my.id/favicon.ico</loc></url>
+  <!-- Add more <url> blocks if you have other important HTML pages, e.g. -->
+  <!-- <url><loc>https://hux.my.id/about.html</loc><lastmod>2026-01-15</lastmod><priority>0.8</priority></url> -->
+
+</urlset>
