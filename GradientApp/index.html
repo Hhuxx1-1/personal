@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gradient to Transparent Generator</title>
+  <style>
+    :root {
+      --bg-color: #f4f4f5;
+      --card-bg: #ffffff;
+      --text-main: #18181b;
+      --border-color: #e4e4e7;
+      --accent: #3b82f6;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      max-width: 600px;
+      width: 100%;
+      display: grid;
+      gap: 24px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.5rem;
+    }
+    
+    .header p {
+      margin: 0;
+      color: #71717a;
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: monospace;
+    }
+
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 6px; }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* Checkerboard pattern to show transparency behind the canvas */
+    .canvas-container {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background-image: 
+        linear-gradient(45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(135deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(135deg, transparent 75%, #ccc 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 0, 10px -10px, 0px 10px;
+      background-color: #fff;
+      overflow: hidden;
+      display: flex;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>Gradient Generator</h1>
+      <p>Solid Color to 100% Transparent. Exports as PNG.</p>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="hexInput">Base Color (Hex)</label>
+        <div class="input-row">
+          <input type="color" id="colorPicker" value="#8b5cf6">
+          <input type="text" id="hexInput" value="#8b5cf6" maxlength="7">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="angleSlider">Direction: <span id="angleValue">90</span>°</label>
+        <input type="range" id="angleSlider" min="0" max="360" value="90">
+      </div>
+    </div>
+
+    <div class="canvas-container">
+      <!-- High resolution canvas for better download quality -->
+      <canvas id="gradientCanvas" width="1280" height="720"></canvas>
+    </div>
+
+    <button onclick="downloadPNG()">Download Transparent PNG</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gradientCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const hexInput = document.getElementById('hexInput');
+    const colorPicker = document.getElementById('colorPicker');
+    const angleSlider = document.getElementById('angleSlider');
+    const angleValue = document.getElementById('angleValue');
+
+    // Convert Hex to RGB object
+    function hexToRgb(hex) {
+      hex = hex.replace(/^#/, '');
+      if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('');
+      }
+      const bigint = parseInt(hex, 16);
+      return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255
+      };
+    }
+
+    // Main rendering function
+    function renderGradient() {
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      // Get values
+      const hex = hexInput.value;
+      const angle = parseInt(angleSlider.value);
+      const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 }; // Fallback to black if invalid
+
+      // Clear the canvas to pure transparent
+      ctx.clearRect(0, 0, width, height);
+
+      // Math to convert CSS angle (0deg = up) to Canvas Coordinates
+      const rad = (angle - 90) * (Math.PI / 180);
+      
+      // Calculate diagonal distance to ensure gradient covers edges
+      const diagonal = Math.sqrt(width * width + height * height) / 2;
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const x0 = centerX - Math.cos(rad) * diagonal;
+      const y0 = centerY - Math.sin(rad) * diagonal;
+      const x1 = centerX + Math.cos(rad) * diagonal;
+      const y1 = centerY + Math.sin(rad) * diagonal;
+
+      // Create and apply gradient
+      const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+      gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+      gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    // Download logic
+    function downloadPNG() {
+      const link = document.createElement('a');
+      link.download = `gradient-${hexInput.value.replace('#', '')}-${angleSlider.value}deg.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    // Event Listeners for syncing inputs and updating canvas
+    colorPicker.addEventListener('input', (e) => {
+      hexInput.value = e.target.value;
+      renderGradient();
+    });
+
+    hexInput.addEventListener('input', (e) => {
+      let val = e.target.value;
+      if (!val.startsWith('#')) val = '#' + val;
+      if (/^#[0-9A-F]{6}$/i.test(val)) {
+        colorPicker.value = val;
+        renderGradient();
+      }
+    });
+
+    angleSlider.addEventListener('input', (e) => {
+      angleValue.textContent = e.target.value;
+      renderGradient();
+    });
+
+    // Initial render on page load
+    renderGradient();
+  </script>
+</body>
+</html>
