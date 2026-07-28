@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gradient to Transparent Generator</title>
+  <title>Pro Gradient to Transparent Generator</title>
   <style>
     :root {
       --bg-color: #f4f4f5;
@@ -31,7 +31,7 @@
       padding: 30px;
       border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      max-width: 600px;
+      max-width: 700px;
       width: 100%;
       display: grid;
       gap: 24px;
@@ -51,7 +51,7 @@
     .controls {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 20px;
     }
 
     .control-group {
@@ -60,9 +60,20 @@
       gap: 8px;
     }
 
+    /* Span full width for sliders so they are easier to use */
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
     label {
       font-weight: 600;
       font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    label span.val {
+      color: var(--accent);
     }
 
     .input-row {
@@ -71,12 +82,16 @@
       align-items: center;
     }
 
-    input[type="text"], input[type="number"] {
+    input[type="text"], select {
       width: 100%;
       padding: 8px 12px;
       border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    input[type="text"] {
       font-family: monospace;
     }
 
@@ -98,12 +113,21 @@
       cursor: pointer;
     }
 
-    /* Checkerboard pattern to show transparency behind the canvas */
+    .canvas-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      background: #e4e4e7;
+      border-radius: 8px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
     .canvas-container {
       width: 100%;
-      aspect-ratio: 16 / 9;
+      /* Aspect ratio set dynamically via JS */
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       background-image: 
         linear-gradient(45deg, #ccc 25%, transparent 25%), 
         linear-gradient(135deg, #ccc 25%, transparent 25%),
@@ -120,6 +144,7 @@
       width: 100%;
       height: 100%;
       display: block;
+      object-fit: contain;
     }
 
     button {
@@ -144,28 +169,49 @@
 
   <div class="container">
     <div class="header">
-      <h1>Gradient Generator</h1>
-      <p>Solid Color to 100% Transparent. Exports as PNG.</p>
+      <h1>Pro Gradient Generator</h1>
+      <p>Configure stops, angles, and ratios. Exports as high-res PNG.</p>
     </div>
 
     <div class="controls">
       <div class="control-group">
         <label for="hexInput">Base Color (Hex)</label>
         <div class="input-row">
-          <input type="color" id="colorPicker" value="#8b5cf6">
-          <input type="text" id="hexInput" value="#8b5cf6" maxlength="7">
+          <input type="color" id="colorPicker" value="#ef4444">
+          <input type="text" id="hexInput" value="#ef4444" maxlength="7">
         </div>
       </div>
 
       <div class="control-group">
-        <label for="angleSlider">Direction: <span id="angleValue">90</span>°</label>
+        <label for="ratioSelect">Aspect Ratio</label>
+        <select id="ratioSelect">
+          <option value="1920x1080">16:9 (Landscape - 1920x1080)</option>
+          <option value="1080x1920">9:16 (Portrait - 1080x1920)</option>
+          <option value="1080x1080">1:1 (Square - 1080x1080)</option>
+          <option value="1440x1080">4:3 (Standard - 1440x1080)</option>
+        </select>
+      </div>
+
+      <div class="control-group full-width">
+        <label for="angleSlider">Direction <span class="val" id="angleValue">90°</span></label>
         <input type="range" id="angleSlider" min="0" max="360" value="90">
+      </div>
+
+      <div class="control-group full-width">
+        <label for="solidStop">Solid Color Ends At <span class="val" id="solidValue">20%</span></label>
+        <input type="range" id="solidStop" min="0" max="100" value="20">
+      </div>
+
+      <div class="control-group full-width">
+        <label for="transStop">Full Transparency Starts At <span class="val" id="transValue">80%</span></label>
+        <input type="range" id="transStop" min="0" max="100" value="80">
       </div>
     </div>
 
-    <div class="canvas-container">
-      <!-- High resolution canvas for better download quality -->
-      <canvas id="gradientCanvas" width="1280" height="720"></canvas>
+    <div class="canvas-wrapper">
+      <div class="canvas-container" id="canvasContainer" style="aspect-ratio: 16/9;">
+        <canvas id="gradientCanvas" width="1920" height="1080"></canvas>
+      </div>
     </div>
 
     <button onclick="downloadPNG()">Download Transparent PNG</button>
@@ -174,55 +220,70 @@
   <script>
     const canvas = document.getElementById('gradientCanvas');
     const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
     
     const hexInput = document.getElementById('hexInput');
     const colorPicker = document.getElementById('colorPicker');
+    const ratioSelect = document.getElementById('ratioSelect');
     const angleSlider = document.getElementById('angleSlider');
     const angleValue = document.getElementById('angleValue');
+    const solidStop = document.getElementById('solidStop');
+    const solidValue = document.getElementById('solidValue');
+    const transStop = document.getElementById('transStop');
+    const transValue = document.getElementById('transValue');
 
     // Convert Hex to RGB object
     function hexToRgb(hex) {
       hex = hex.replace(/^#/, '');
-      if (hex.length === 3) {
-        hex = hex.split('').map(char => char + char).join('');
-      }
+      if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
       const bigint = parseInt(hex, 16);
-      return {
-        r: (bigint >> 16) & 255,
-        g: (bigint >> 8) & 255,
-        b: bigint & 255
-      };
+      return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
     }
 
     // Main rendering function
     function renderGradient() {
+      // Set canvas size based on ratio select
+      const [w, h] = ratioSelect.value.split('x').map(Number);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        canvasContainer.style.aspectRatio = `${w} / ${h}`;
+      }
+
       const width = canvas.width;
       const height = canvas.height;
-      
-      // Get values
       const hex = hexInput.value;
       const angle = parseInt(angleSlider.value);
-      const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 }; // Fallback to black if invalid
+      const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+      
+      const sStop = parseInt(solidStop.value) / 100;
+      const tStop = parseInt(transStop.value) / 100;
 
-      // Clear the canvas to pure transparent
+      // Clear the canvas
       ctx.clearRect(0, 0, width, height);
 
-      // Math to convert CSS angle (0deg = up) to Canvas Coordinates
+      // Advanced Math: Exact distance to edges (mimics CSS linear-gradient behavior)
       const rad = (angle - 90) * (Math.PI / 180);
+      const distance = Math.abs((width / 2) * Math.cos(rad)) + Math.abs((height / 2) * Math.sin(rad));
       
-      // Calculate diagonal distance to ensure gradient covers edges
-      const diagonal = Math.sqrt(width * width + height * height) / 2;
       const centerX = width / 2;
       const centerY = height / 2;
 
-      const x0 = centerX - Math.cos(rad) * diagonal;
-      const y0 = centerY - Math.sin(rad) * diagonal;
-      const x1 = centerX + Math.cos(rad) * diagonal;
-      const y1 = centerY + Math.sin(rad) * diagonal;
+      const x0 = centerX - Math.cos(rad) * distance;
+      const y0 = centerY - Math.sin(rad) * distance;
+      const x1 = centerX + Math.cos(rad) * distance;
+      const y1 = centerY + Math.sin(rad) * distance;
 
       // Create and apply gradient
       const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+      
+      // Stop 1: Hard edge at 0%
       gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+      // Stop 2: Solid color continues until user's solid limit
+      gradient.addColorStop(sStop, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+      // Stop 3: Fade finishes at user's transparent limit
+      gradient.addColorStop(tStop, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+      // Stop 4: Remains transparent until 100%
       gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
 
       ctx.fillStyle = gradient;
@@ -232,12 +293,34 @@
     // Download logic
     function downloadPNG() {
       const link = document.createElement('a');
-      link.download = `gradient-${hexInput.value.replace('#', '')}-${angleSlider.value}deg.png`;
+      const ratioName = ratioSelect.options[ratioSelect.selectedIndex].text.split(' ')[0];
+      link.download = `gradient-${hexInput.value.replace('#', '')}-${ratioName.replace(':', 'x')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     }
 
-    // Event Listeners for syncing inputs and updating canvas
+    // UX Logic: Prevent sliders from crossing each other
+    solidStop.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value);
+      if (val > parseInt(transStop.value)) {
+        transStop.value = val;
+        transValue.textContent = val + '%';
+      }
+      solidValue.textContent = val + '%';
+      renderGradient();
+    });
+
+    transStop.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value);
+      if (val < parseInt(solidStop.value)) {
+        solidStop.value = val;
+        solidValue.textContent = val + '%';
+      }
+      transValue.textContent = val + '%';
+      renderGradient();
+    });
+
+    // Standard Event Listeners
     colorPicker.addEventListener('input', (e) => {
       hexInput.value = e.target.value;
       renderGradient();
@@ -253,9 +336,11 @@
     });
 
     angleSlider.addEventListener('input', (e) => {
-      angleValue.textContent = e.target.value;
+      angleValue.textContent = e.target.value + '°';
       renderGradient();
     });
+
+    ratioSelect.addEventListener('change', renderGradient);
 
     // Initial render on page load
     renderGradient();
