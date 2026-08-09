@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hex Encoder / Decoder</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --border-color: #333;
+            --accent-color: #007acc;
+            --accent-hover: #005f99;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background-color: #2a2a2a;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: 1;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .error {
+            color: #ff5555;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Hex ↔ Text Converter</h2>
+        
+        <div class="input-group">
+            <label for="textInput">Plain Text (Standard Characters)</label>
+            <textarea id="textInput" placeholder="Type your text here... e.g., when ya imo"></textarea>
+        </div>
+
+        <div class="controls">
+            <button onclick="encodeText()">⬇ Encode to Hex</button>
+            <button onclick="decodeHex()">⬆ Decode to Text</button>
+        </div>
+
+        <div class="input-group">
+            <label for="hexInput">Hexadecimal (Hyphenated, spaced between words)</label>
+            <textarea id="hexInput" placeholder="Type hex here... e.g., 77-68-65-6e  79-61  69-6d-6f"></textarea>
+            <div id="errorMessage" class="error">Invalid Hex format detected.</div>
+        </div>
+    </div>
+
+    <script>
+        // Encodes plain text into hyphenated hex, with double spaces separating words
+        function encodeText() {
+            const text = document.getElementById('textInput').value;
+            if (!text) {
+                document.getElementById('hexInput').value = '';
+                return;
+            }
+
+            // Split text by spaces to preserve word groupings
+            const words = text.split(' ');
+            
+            const encodedWords = words.map(word => {
+                // Convert each character in the word to a 2-digit hex string and join with hyphens
+                return Array.from(word).map(char => {
+                    return char.charCodeAt(0).toString(16).padStart(2, '0');
+                }).join('-');
+            });
+
+            // Join the encoded words with a double space
+            document.getElementById('hexInput').value = encodedWords.join('  ');
+            hideError();
+        }
+
+        // Decodes hyphenated hex back into plain text
+        function decodeHex() {
+            const hex = document.getElementById('hexInput').value.trim();
+            if (!hex) {
+                document.getElementById('textInput').value = '';
+                return;
+            }
+
+            try {
+                // Split the input by spaces (handles single, double, or multiple spaces)
+                const hexWords = hex.split(/\s+/);
+                
+                const decodedWords = hexWords.map(word => {
+                    // Split the hyphenated word into individual hex codes
+                    return word.split('-').map(hexCode => {
+                        if (hexCode === '') return '';
+                        // Parse hex to integer, then to character
+                        const charCode = parseInt(hexCode, 16);
+                        if (isNaN(charCode)) throw new Error('Invalid Hex');
+                        return String.fromCharCode(charCode);
+                    }).join('');
+                });
+
+                // Join the decoded words with a single space
+                document.getElementById('textInput').value = decodedWords.join(' ');
+                hideError();
+            } catch (e) {
+                showError();
+            }
+        }
+
+        function showError() {
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
