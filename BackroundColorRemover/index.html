@@ -31,7 +31,7 @@
       padding: 30px;
       border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      max-width: 800px;
+      max-width: 900px;
       width: 100%;
       display: grid;
       gap: 20px;
@@ -56,6 +56,7 @@
       flex-direction: column;
       gap: 5px;
       flex-grow: 1;
+      min-width: 150px;
     }
 
     label { font-weight: 600; font-size: 0.85rem; }
@@ -69,12 +70,26 @@
       cursor: pointer;
     }
 
-    /* Checkerboard container to show transparency */
+    /* Updated to handle scrolling/zooming */
     .canvas-container {
       width: 100%;
-      min-height: 400px;
+      height: 500px; /* Fixed height to create a scrollable area */
       border: 2px dashed var(--border-color);
       border-radius: 8px;
+      background-color: #fff;
+      overflow: auto; /* Adds scrollbars when canvas is zoomed */
+      position: relative;
+    }
+
+    /* Wrapper ensures the canvas stays centered and checkerboard covers it */
+    .canvas-wrapper {
+      min-width: 100%;
+      min-height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
       background-image: 
         linear-gradient(45deg, #ccc 25%, transparent 25%), 
         linear-gradient(135deg, #ccc 25%, transparent 25%),
@@ -82,24 +97,20 @@
         linear-gradient(135deg, transparent 75%, #ccc 75%);
       background-size: 20px 20px;
       background-position: 0 0, 10px 0, 10px -10px, 0px 10px;
-      background-color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      position: relative;
-      cursor: crosshair; /* Indicates clicking to pick color */
     }
 
     canvas {
-      max-width: 100%;
-      max-height: 60vh;
-      object-fit: contain;
       display: block;
+      cursor: crosshair;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2); /* Helps see canvas edges */
+      /* Width and height are controlled via JavaScript for zooming */
     }
 
     .placeholder {
       position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       color: #71717a;
       pointer-events: none;
       font-weight: 500;
@@ -108,6 +119,7 @@
     .actions {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
     button {
@@ -119,13 +131,15 @@
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: background-color 0.2s, opacity 0.2s;
       flex: 1;
+      white-space: nowrap;
     }
 
-    button:hover { background-color: #2563eb; }
+    button:hover:not(:disabled) { background-color: #2563eb; }
     button.secondary { background-color: #e4e4e7; color: var(--text-main); }
-    button.secondary:hover { background-color: #d4d4d8; }
+    button.secondary:hover:not(:disabled) { background-color: #d4d4d8; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   </style>
 </head>
@@ -134,7 +148,7 @@
   <div class="container">
     <div class="header">
       <h1>Magic Background Eraser</h1>
-      <p>Upload an image, then click on the solid background to erase it.</p>
+      <p>Upload an image, zoom in for precision, and click the background to erase it.</p>
     </div>
 
     <div class="toolbar">
@@ -144,31 +158,52 @@
       </div>
       
       <div class="control-group">
-        <label for="tolerance">2. Color Tolerance: <span id="tolValue">30</span></label>
+        <label for="tolerance">2. Tolerance: <span id="tolValue">30</span></label>
         <input type="range" id="tolerance" min="0" max="150" value="30">
+      </div>
+
+      <!-- New Zoom Slider -->
+      <div class="control-group">
+        <label for="zoom">3. Zoom: <span id="zoomValue">100%</span></label>
+        <input type="range" id="zoom" min="10" max="500" value="100">
       </div>
     </div>
 
     <div class="canvas-container" id="canvasContainer">
       <div class="placeholder" id="placeholder">Upload an image to start</div>
-      <canvas id="editorCanvas"></canvas>
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="editorCanvas"></canvas>
+      </div>
     </div>
 
     <div class="actions">
-      <button class="secondary" onclick="resetImage()">Undo All</button>
-      <button onclick="downloadPNG()">Download Transparent PNG</button>
+      <!-- New Undo Button -->
+      <button class="secondary" id="undoBtn" onclick="undoStep()" disabled>Undo Last</button>
+      <button class="secondary" onclick="resetImage()">Reset All</button>
+      <button onclick="downloadPNG()">Download PNG</button>
     </div>
   </div>
 
   <script>
     const canvas = document.getElementById('editorCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const upload = document.getElementById('imageUpload');
+    
+    // UI Elements
     const toleranceSlider = document.getElementById('tolerance');
     const tolValue = document.getElementById('tolValue');
+    const zoomSlider = document.getElementById('zoom');
+    const zoomValue = document.getElementById('zoomValue');
     const placeholder = document.getElementById('placeholder');
+    const undoBtn = document.getElementById('undoBtn');
+    const canvasContainer = document.getElementById('canvasContainer');
     
-    let originalImage = null; // Keeps a copy of the untouched image for resets
+    let originalImage = null;
+    let baseScale = 1; // Determines initial fit
+    
+    // History Array for Undo
+    const history = [];
+    const maxHistory = 10; // Maximum number of undo steps to save memory
 
     // 1. Handle Image Upload
     upload.addEventListener('change', (e) => {
@@ -179,36 +214,90 @@
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          // Set canvas dimensions to match the actual image resolution
+          // Set internal canvas resolution
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
-          originalImage = img; // Save state
+          
+          originalImage = img;
           placeholder.style.display = 'none';
+
+          // Clear history on new image
+          history.length = 0;
+          undoBtn.disabled = true;
+
+          // Calculate initial scale to fit the container nicely
+          const padding = 40;
+          const scaleX = (canvasContainer.clientWidth - padding) / img.width;
+          const scaleY = (canvasContainer.clientHeight - padding) / img.height;
+          
+          baseScale = Math.min(scaleX, scaleY);
+          if (baseScale > 1) baseScale = 1; // Don't upscale tiny images on load
+
+          // Reset Zoom UI
+          zoomSlider.value = 100;
+          zoomValue.textContent = '100%';
+          applyZoom();
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    // Update tolerance label
+    // Handle UI Updates
     toleranceSlider.addEventListener('input', (e) => {
       tolValue.textContent = e.target.value;
     });
 
-    // Restore the original image
+    zoomSlider.addEventListener('input', (e) => {
+      zoomValue.textContent = e.target.value + '%';
+      applyZoom();
+    });
+
+    // 2. Zooming Logic
+    function applyZoom() {
+      if (!originalImage) return;
+      const zoomFactor = parseInt(zoomSlider.value) / 100;
+      const currentScale = baseScale * zoomFactor;
+      
+      // Update canvas CSS size (enables native scrollbars in parent)
+      canvas.style.width = `${canvas.width * currentScale}px`;
+      canvas.style.height = `${canvas.height * currentScale}px`;
+    }
+
+    // 3. History & Undo Logic
+    function saveState() {
+      // Save current pixels before modifying
+      history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      if (history.length > maxHistory) {
+        history.shift(); // Remove oldest state to free memory
+      }
+      undoBtn.disabled = false;
+    }
+
+    function undoStep() {
+      if (history.length > 0) {
+        const previousState = history.pop();
+        ctx.putImageData(previousState, 0, 0);
+        if (history.length === 0) {
+          undoBtn.disabled = true;
+        }
+      }
+    }
+
     function resetImage() {
       if (originalImage) {
+        saveState(); // Allow undoing the reset!
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(originalImage, 0, 0);
       }
     }
 
-    // 2. The Click Event (Get Coordinates)
+    // 4. The Click Event (Get Coordinates)
     canvas.addEventListener('click', (e) => {
       if (!originalImage) return;
 
-      // Calculate actual canvas coordinates (handling CSS scaling)
+      // Accurately map mouse click to internal canvas pixels despite zoom
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
@@ -218,37 +307,36 @@
 
       const tolerance = parseInt(toleranceSlider.value);
       
-      // Run the magic wand
       floodFill(startX, startY, tolerance);
     });
 
-    // 3. The Flood Fill Algorithm (Magic Wand)
+    // 5. The Flood Fill Algorithm
     function floodFill(startX, startY, tolerance) {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
       const width = canvas.width;
       const height = canvas.height;
 
-      // Find the color the user clicked on
       const startIndex = (startY * width + startX) * 4;
       const targetR = data[startIndex];
       const targetG = data[startIndex + 1];
       const targetB = data[startIndex + 2];
       const targetA = data[startIndex + 3];
 
-      // If they clicked an already transparent area, ignore
+      // Ignore if clicking already transparent area
       if (targetA === 0) return;
 
-      // Helper function to check if a pixel is within the color tolerance
+      // Save history ONLY because we are about to make a change
+      saveState();
+
       function colorMatch(index) {
         const r = data[index];
         const g = data[index + 1];
         const b = data[index + 2];
         const a = data[index + 3];
 
-        if (a === 0) return false; // Already transparent
+        if (a === 0) return false;
 
-        // Euclidean distance for color difference
         const distance = Math.sqrt(
           Math.pow(r - targetR, 2) + 
           Math.pow(g - targetG, 2) + 
@@ -258,7 +346,6 @@
         return distance <= tolerance;
       }
 
-      // Stack-based algorithm (prevents stack overflow on large images)
       const pixelStack = [[startX, startY]];
 
       while (pixelStack.length > 0) {
@@ -266,23 +353,20 @@
         let currentX = x;
         let currentY = y;
         
-        // Move up as far as colors match
         let pixelPos = (currentY * width + currentX) * 4;
         while (currentY >= 0 && colorMatch(pixelPos)) {
           currentY--;
           pixelPos -= width * 4;
         }
 
-        currentY++; // Move back down one pixel to the first valid match
+        currentY++;
         pixelPos += width * 4;
 
         let reachLeft = false;
         let reachRight = false;
 
-        // Move down, turning matching pixels transparent
         while (currentY < height && colorMatch(pixelPos)) {
-          // Turn pixel transparent (Set Alpha to 0)
-          data[pixelPos + 3] = 0;
+          data[pixelPos + 3] = 0; // Turn transparent
 
           if (currentX > 0) {
             if (colorMatch(pixelPos - 4)) {
@@ -311,11 +395,10 @@
         }
       }
 
-      // Apply the modified pixel data back to the canvas
       ctx.putImageData(imgData, 0, 0);
     }
 
-    // 4. Download Logic
+    // 6. Download Logic
     function downloadPNG() {
       if (!originalImage) return alert('Please upload an image first.');
       const link = document.createElement('a');
