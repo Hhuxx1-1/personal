@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Texture Creator & Previewer</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --text-color: #eee;
+            --accent: #4CAF50;
+            --border: #444;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .toolbar {
+            background-color: var(--panel-bg);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .toolbar-title {
+            width: 100%;
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+        }
+        button, input[type="file"]::file-selector-button {
+            background-color: var(--panel-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        button:hover, input[type="file"]::file-selector-button:hover {
+            background-color: #3d3d3d;
+            border-color: #666;
+        }
+        button.primary {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            font-weight: bold;
+        }
+        button.primary:hover {
+            background-color: #45a049;
+        }
+        input[type="number"] {
+            width: 60px;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 4px;
+        }
+        .canvas-container-wrapper {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background-color: #111;
+            /* Checkerboard pattern for transparency */
+            background-image: 
+                linear-gradient(45deg, #333 25%, transparent 25%), 
+                linear-gradient(-45deg, #333 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #333 75%), 
+                linear-gradient(-45deg, transparent 75%, #333 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* The UV Overlay */
+        #uvOverlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; /* Let clicks pass through to Fabric canvas */
+            z-index: 10;
+        }
+        .canvas-container {
+            margin: auto !important;
+        }
+        #viewport3d {
+            flex: 1;
+            background: #111;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .help-text {
+            font-size: 0.8em;
+            color: #aaa;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LEFT PANEL: 2D Texture Editor -->
+    <div class="panel">
+        <div class="toolbar">
+            <div class="toolbar-title">2D Canvas (PNG Base)</div>
+            
+            <label>W: <input type="number" id="canvasW" value="1024"></label>
+            <label>H: <input type="number" id="canvasH" value="1024"></label>
+            <button onclick="resizeCanvas()">Resize Canvas</button>
+            <button onclick="clearCanvas()">Clear All</button>
+            
+            <div style="width: 100%; height: 0;"></div> <!-- Line break -->
+
+            <input type="file" id="imageUpload" accept="image/*" multiple>
+            
+            <button onclick="moveLayer(1)">Bring Forward</button>
+            <button onclick="moveLayer(-1)">Send Backward</button>
+            <button onclick="deleteSelected()" style="color: #ff5252; border-color: #ff5252;">Delete Selected</button>
+            
+            <div style="width: 100%; height: 0;"></div> <!-- Line break -->
+            
+            <label><input type="checkbox" id="showUV" onchange="toggleUV()" checked> Show UV Map Overlay</label>
+            <button onclick="exportPNG()" class="primary" style="margin-left: auto;">Export PNG</button>
+            
+            <div class="help-text">Controls: Drag to move. Drag corners to scale. Drag sides to stretch/proportion. Use top handle to rotate.</div>
+        </div>
+
+        <div class="canvas-container-wrapper" id="canvasWrapper">
+            <canvas id="canvas2d"></canvas>
+            <canvas id="uvOverlay"></canvas>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: 3D Preview -->
+    <div class="panel">
+        <div class="toolbar">
+            <div class="toolbar-title">3D Preview</div>
+            
+            <input type="file" id="modelUpload" accept=".obj,.glb,.gltf">
+            
+            <label title="GLTF usually requires normal Y, OBJ usually requires flipped Y.">
+                <input type="checkbox" id="flipY" checked onchange="update3DTexture()"> Flip Texture Y
+            </label>
+            
+            <button onclick="update3DTexture()" class="primary" style="margin-left: auto;">Refresh 3D Preview</button>
+            
+            <div class="help-text">Controls: Left-Click & Drag to Rotate. Right-Click & Drag to Pan. Scroll to Zoom.</div>
+        </div>
+
+        <div id="viewport3d"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 2D CANVAS SETUP (Fabric.js)
+        // ==========================================
+        const canvas = new fabric.Canvas('canvas2d', {
+            width: 1024,
+            height: 1024,
+            preserveObjectStacking: true, // Keep layers in order when selected
+            selection: true // Allow multi-selection
+        });
+
+        const uvOverlay = document.getElementById('uvOverlay');
+        const uvCtx = uvOverlay.getContext('2d');
+        let currentUVData = []; // Stores the UV lines
+
+        // Align overlay with Fabric canvas
+        function syncOverlaySize() {
+            uvOverlay.width = canvas.width;
+            uvOverlay.height = canvas.height;
+            drawUVOverlay();
+        }
+        syncOverlaySize();
+
+        function resizeCanvas() {
+            const w = parseInt(document.getElementById('canvasW').value) || 1024;
+            const h = parseInt(document.getElementById('canvasH').value) || 1024;
+            canvas.setWidth(w);
+            canvas.setHeight(h);
+            syncOverlaySize();
+            canvas.renderAll();
+        }
+
+        function clearCanvas() {
+            if(confirm("Clear the entire canvas?")) {
+                canvas.clear();
+            }
+        }
+
+        // Allow stretching objects (non-uniform scaling)
+        fabric.Object.prototype.set({
+            transparentCorners: false,
+            cornerColor: '#4CAF50',
+            cornerStrokeColor: '#fff',
+            borderColor: '#4CAF50',
+            cornerSize: 10,
+            padding: 5,
+        });
+
+        // Handle Image Upload to Canvas
+        document.getElementById('imageUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(f) {
+                    const data = f.target.result;
+                    fabric.Image.fromURL(data, function(img) {
+                        // Scale down if it's too big for the canvas
+                        if(img.width > canvas.width) img.scaleToWidth(canvas.width * 0.8);
+                        
+                        // Center it
+                        img.set({
+                            left: canvas.width / 2,
+                            top: canvas.height / 2,
+                            originX: 'center',
+                            originY: 'center'
+                        });
+                        
+                        canvas.add(img);
+                        canvas.setActiveObject(img);
+                        canvas.renderAll();
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+            // Reset input so you can upload the same file again if needed
+            e.target.value = '';
+        });
+
+        function deleteSelected() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                canvas.discardActiveObject();
+                activeObjects.forEach(function(object) {
+                    canvas.remove(object);
+                });
+            }
+        }
+
+        function moveLayer(dir) {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+            if (dir > 0) canvas.bringForward(obj);
+            else canvas.sendBackwards(obj);
+            canvas.renderAll();
+        }
+
+        // Keyboard shortcuts for 2D canvas (Delete key)
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                // Only delete if we aren't typing in an input
+                if(e.target.tagName !== "INPUT") {
+                    deleteSelected();
+                }
+            }
+        });
+
+        function exportPNG() {
+            // Get data URL without background color (transparent base)
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                multiplier: 1
+            });
+            const link = document.createElement('a');
+            link.download = 'texture.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+
+        // ==========================================
+        // 3D PREVIEW SETUP (Three.js)
+        // ==========================================
+        const viewport = document.getElementById('viewport3d');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#111');
+
+        const camera = new THREE.Camera(); // Will be replaced based on model bounding box
+        const perspectiveCamera = new THREE.PerspectiveCamera(45, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+        perspectiveCamera.position.set(0, 0, 5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        viewport.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(perspectiveCamera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(-5, -10, -7);
+        scene.add(backLight);
+
+        let currentModel = null;
+        let modelMaterials = []; // Keep track of materials to apply textures to
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (perspectiveCamera) {
+                perspectiveCamera.aspect = viewport.clientWidth / viewport.clientHeight;
+                perspectiveCamera.updateProjectionMatrix();
+                renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+            }
+        });
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, perspectiveCamera);
+        }
+        animate();
+
+        // Handle 3D Model Upload
+        document.getElementById('modelUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const filename = file.name.toLowerCase();
+            const url = URL.createObjectURL(file);
+
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+                modelMaterials = [];
+                currentUVData = []; // Clear UVs
+                drawUVOverlay();
+            }
+
+            if (filename.endsWith('.obj')) {
+                const loader = new THREE.OBJLoader();
+                loader.load(url, function(object) {
+                    processModel(object);
+                });
+            } else if (filename.endsWith('.gltf') || filename.endsWith('.glb')) {
+                const loader = new THREE.GLTFLoader();
+                loader.load(url, function(gltf) {
+                    processModel(gltf.scene);
+                });
+            } else {
+                alert("Unsupported file format. Please upload .obj, .gltf, or .glb");
+            }
+        });
+
+        function processModel(object) {
+            currentModel = object;
+            scene.add(currentModel);
+            
+            // Extract UVs and find materials
+            currentModel.traverse(function(child) {
+                if (child.isMesh) {
+                    // Create a new material so we don't ruin the original, ensure transparency is true
+                    let newMat = new THREE.MeshStandardMaterial({ 
+                        color: 0xffffff,
+                        transparent: true,
+                        side: THREE.DoubleSide
+                    });
+                    child.material = newMat;
+                    modelMaterials.push(newMat);
+
+                    extractUVs(child.geometry);
+                }
+            });
+
+            // Center and scale camera to fit model
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            
+            currentModel.position.sub(center); // Center the model at 0,0,0
+            
+            perspectiveCamera.position.set(0, 0, maxDim * 2);
+            controls.target.set(0,0,0);
+            controls.update();
+
+            drawUVOverlay();
+            update3DTexture(); // Auto-apply canvas if it has stuff
+        }
+
+        // ==========================================
+        // TEXTURE REFRESH & UV LOGIC
+        // ==========================================
+
+        function update3DTexture() {
+            if (modelMaterials.length === 0) return;
+
+            // Grab the current state of the Fabric canvas as a base64 Image
+            const dataURL = canvas.toDataURL({ format: 'png' });
+            
+            const img = new Image();
+            img.src = dataURL;
+            img.onload = function() {
+                const texture = new THREE.Texture(img);
+                
+                // Usually OBJ requires flipY=true, GLTF requires flipY=false
+                // Provided a checkbox for the user to control this easily
+                texture.flipY = document.getElementById('flipY').checked; 
+                
+                texture.needsUpdate = true;
+                texture.encoding = THREE.sRGBEncoding;
+
+                // Apply to all materials
+                modelMaterials.forEach(mat => {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
+                });
+            };
+        }
+
+        function extractUVs(geometry) {
+            if (!geometry.attributes.uv) return; // Model has no UVs
+            
+            const uvs = geometry.attributes.uv.array;
+            const indices = geometry.index ? geometry.index.array : null;
+
+            if (indices) {
+                // Indexed geometry
+                for (let i = 0; i < indices.length; i += 3) {
+                    let a = indices[i], b = indices[i+1], c = indices[i+2];
+                    currentUVData.push([uvs[a*2], uvs[a*2+1], uvs[b*2], uvs[b*2+1]]);
+                    currentUVData.push([uvs[b*2], uvs[b*2+1], uvs[c*2], uvs[c*2+1]]);
+                    currentUVData.push([uvs[c*2], uvs[c*2+1], uvs[a*2], uvs[a*2+1]]);
+                }
+            } else {
+                // Non-indexed geometry
+                for (let i = 0; i < uvs.length / 2; i += 3) {
+                    let a = i, b = i+1, c = i+2;
+                    currentUVData.push([uvs[a*2], uvs[a*2+1], uvs[b*2], uvs[b*2+1]]);
+                    currentUVData.push([uvs[b*2], uvs[b*2+1], uvs[c*2], uvs[c*2+1]]);
+                    currentUVData.push([uvs[c*2], uvs[c*2+1], uvs[a*2], uvs[a*2+1]]);
+                }
+            }
+        }
+
+        function toggleUV() {
+            uvOverlay.style.display = document.getElementById('showUV').checked ? 'block' : 'none';
+        }
+
+        function drawUVOverlay() {
+            uvCtx.clearRect(0, 0, uvOverlay.width, uvOverlay.height);
+            
+            if (!currentUVData.length || !document.getElementById('showUV').checked) return;
+
+            uvCtx.strokeStyle = 'rgba(0, 255, 0, 0.4)'; // Semi-transparent green
+            uvCtx.lineWidth = 1;
+            uvCtx.beginPath();
+
+            const w = uvOverlay.width;
+            const h = uvOverlay.height;
+            const flipY = document.getElementById('flipY').checked; // Match visual to the texture setting
+
+            currentUVData.forEach(line => {
+                let u1 = line[0], v1 = line[1];
+                let u2 = line[2], v2 = line[3];
+
+                // In Canvas 2D, Y is top-down. 
+                // We adjust V based on whether the user is mapping inverted Y or not
+                let y1 = flipY ? (1 - v1) * h : v1 * h;
+                let y2 = flipY ? (1 - v2) * h : v2 * h;
+
+                uvCtx.moveTo(u1 * w, y1);
+                uvCtx.lineTo(u2 * w, y2);
+            });
+            uvCtx.stroke();
+        }
+
+        // Re-draw UV overlay if they toggle the Flip Y button so the overlay matches the texture application
+        document.getElementById('flipY').addEventListener('change', drawUVOverlay);
+
+    </script>
+</body>
+</html>
