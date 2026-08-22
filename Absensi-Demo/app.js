@@ -1,4 +1,4 @@
-const endpoint = "https://script.google.com/macros/s/AKfycbwSkZ2G1OAJ_PIPg9-4RpRaqPZ1IxACRK_w234KqsBstWxSqPW2KsL-M3--2ZZwhLcw/exec";
+const endpoint = "https://script.google.com/macros/s/AKfycbzXwuLCs0YPyI5boKVaPXq1gTzCdeudOpMvSZlHEMRI5SgLzZbgp_YM3JUmJcWVprq1/exec";
 const myKey = "CahAngon1";
 var base64Image_data;
 var divSubmit;
