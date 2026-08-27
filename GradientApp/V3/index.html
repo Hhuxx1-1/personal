@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pro Gradient Generator - Multi-Stop</title>
+  <style>
+    :root {
+      --bg-color: #f4f4f5;
+      --card-bg: #ffffff;
+      --text-main: #18181b;
+      --border-color: #e4e4e7;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #fee2e2;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      /* Changed to flex-start with margin so tall panels don't get cut off at the top */
+      align-items: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 40px 20px;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      max-width: 700px;
+      width: 100%;
+      display: grid;
+      gap: 24px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.5rem;
+    }
+    
+    .header p {
+      margin: 0;
+      color: #71717a;
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    label span.val {
+      color: var(--accent);
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    input[type="text"] {
+      font-family: monospace;
+    }
+
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 6px; }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* --- Multi-Stop CSS --- */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-top: 10px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stop-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stop-card {
+      background: #fafafa;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* --- Canvas & Buttons --- */
+    .canvas-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      background: #e4e4e7;
+      border-radius: 8px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .canvas-container {
+      width: 100%;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      background-image: 
+        linear-gradient(45deg, #ccc 25%, transparent 25%), 
+        linear-gradient(135deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(135deg, transparent 75%, #ccc 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 0, 10px -10px, 0px 10px;
+      background-color: #fff;
+      overflow: hidden;
+      display: flex;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover { background-color: var(--accent-hover); }
+
+    .btn-secondary {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      padding: 6px 12px;
+    }
+    .btn-secondary:hover { background-color: var(--border-color); }
+
+    .btn-danger {
+      background-color: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .btn-danger:hover { background-color: var(--danger-hover); }
+    .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .primary-download { width: 100%; padding: 14px; font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>Pro Gradient Generator</h1>
+      <p>Unlimited stops. Independent transparency. Exact precision.</p>
+    </div>
+
+    <!-- General Settings -->
+    <div class="controls">
+      <div class="control-group">
+        <label for="typeSelect">Gradient Type</label>
+        <select id="typeSelect">
+          <option value="linear">Linear</option>
+          <option value="radial">Radial (Circle)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="ratioSelect">Aspect Ratio</label>
+        <select id="ratioSelect">
+          <option value="1920x1080">16:9 (Landscape - 1920x1080)</option>
+          <option value="1080x1920">9:16 (Portrait - 1080x1920)</option>
+          <option value="1080x1080">1:1 (Square - 1080x1080)</option>
+          <option value="1440x1080">4:3 (Standard - 1440x1080)</option>
+        </select>
+      </div>
+
+      <!-- Linear Controls -->
+      <div class="control-group" id="linearConfig">
+        <label for="angleSlider">Angle <span class="val" id="angleValue">90°</span></label>
+        <input type="range" id="angleSlider" min="0" max="360" value="90">
+      </div>
+
+      <!-- Radial Controls (Hidden by default) -->
+      <div class="control-group hidden" id="radialConfig">
+        <label for="radialDirSelect">Radial Direction</label>
+        <select id="radialDirSelect">
+          <option value="in-out">Inner to Outer</option>
+          <option value="out-in">Outer to Inner</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Multi-Stop Configuration -->
+    <div>
+      <div class="section-title">
+        <span>Gradient Stops</span>
+        <button class="btn-secondary" id="addStopBtn">+ Add Stop</button>
+      </div>
+      <div class="stop-list" id="stopsList">
+        <!-- Stop Cards Generated by JS -->
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="canvas-wrapper">
+      <div class="canvas-container" id="canvasContainer" style="aspect-ratio: 16/9;">
+        <canvas id="gradientCanvas" width="1920" height="1080"></canvas>
+      </div>
+    </div>
+
+    <button class="primary-download" onclick="downloadPNG()">Download Transparent PNG</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gradientCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+    
+    const typeSelect = document.getElementById('typeSelect');
+    const ratioSelect = document.getElementById('ratioSelect');
+    const linearConfig = document.getElementById('linearConfig');
+    const angleSlider = document.getElementById('angleSlider');
+    const angleValue = document.getElementById('angleValue');
+    const radialConfig = document.getElementById('radialConfig');
+    const radialDirSelect = document.getElementById('radialDirSelect');
+    const stopsList = document.getElementById('stopsList');
+    const addStopBtn = document.getElementById('addStopBtn');
+
+    // State Management for Unlimited Stops
+    // We start with 2 default stops
+    let stops = [
+      { id: Date.now(), hex: '#ef4444', alpha: 100, pos: 20 },
+      { id: Date.now() + 1, hex: '#ef4444', alpha: 0, pos: 80 }
+    ];
+
+    function hexToRgb(hex) {
+      hex = hex.replace(/^#/, '');
+      if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
+      const bigint = parseInt(hex, 16);
+      return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+    }
+
+    // Render the Stop Settings UI
+    function renderStopsUI() {
+      stopsList.innerHTML = '';
+      stops.forEach((stop, index) => {
+        const isDeleteDisabled = stops.length <= 2 ? 'disabled' : '';
+        
+        const card = document.createElement('div');
+        card.className = 'stop-card';
+        card.dataset.id = stop.id;
+        
+        card.innerHTML = `
+          <div class="stop-header">
+            <div class="input-row">
+              <input type="color" class="stop-color" value="${stop.hex}">
+              <input type="text" class="stop-hex" value="${stop.hex}" maxlength="7" style="width: 100px;">
+            </div>
+            <button class="btn-danger remove-btn" ${isDeleteDisabled}>Remove</button>
+          </div>
+          <div class="control-group">
+            <label>Position <span class="val">${stop.pos}%</span></label>
+            <input type="range" class="stop-pos" min="0" max="100" value="${stop.pos}">
+          </div>
+          <div class="control-group">
+            <label>Opacity <span class="val">${stop.alpha}%</span></label>
+            <input type="range" class="stop-alpha" min="0" max="100" value="${stop.alpha}">
+          </div>
+        `;
+        stopsList.appendChild(card);
+      });
+    }
+
+    // Main rendering function for the Canvas
+    function renderGradient() {
+      const [w, h] = ratioSelect.value.split('x').map(Number);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        canvasContainer.style.aspectRatio = `${w} / ${h}`;
+      }
+
+      ctx.clearRect(0, 0, w, h);
+      
+      const gradientType = typeSelect.value;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      let gradient;
+
+      if (gradientType === 'linear') {
+        const angle = parseInt(angleSlider.value);
+        const rad = (angle - 90) * (Math.PI / 180);
+        const distance = Math.abs((w / 2) * Math.cos(rad)) + Math.abs((h / 2) * Math.sin(rad));
+        
+        const x0 = centerX - Math.cos(rad) * distance;
+        const y0 = centerY - Math.sin(rad) * distance;
+        const x1 = centerX + Math.cos(rad) * distance;
+        const y1 = centerY + Math.sin(rad) * distance;
+
+        gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+      } else {
+        const maxRadius = Math.hypot(centerX, centerY);
+        const direction = radialDirSelect.value;
+        
+        // Handle Inner-to-Outer vs Outer-to-Inner mathematically
+        if (direction === 'in-out') {
+          gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
+        } else {
+          gradient = ctx.createRadialGradient(centerX, centerY, maxRadius, centerX, centerY, 0);
+        }
+      }
+
+      // Sort stops mathematically by position (required by canvas API)
+      const sortedStops = [...stops].sort((a, b) => a.pos - b.pos);
+      
+      sortedStops.forEach(stop => {
+        const rgb = hexToRgb(stop.hex) || { r: 0, g: 0, b: 0 };
+        const positionFixed = Math.max(0, Math.min(1, stop.pos / 100)); // Clamp between 0 and 1
+        gradient.addColorStop(positionFixed, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${stop.alpha / 100})`);
+      });
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // --- Event Listeners ---
+
+    // Toggle Linear vs Radial Options
+    typeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'radial') {
+        linearConfig.classList.add('hidden');
+        radialConfig.classList.remove('hidden');
+      } else {
+        linearConfig.classList.remove('hidden');
+        radialConfig.classList.add('hidden');
+      }
+      renderGradient();
+    });
+
+    ratioSelect.addEventListener('change', renderGradient);
+    radialDirSelect.addEventListener('change', renderGradient);
+    
+    angleSlider.addEventListener('input', (e) => {
+      angleValue.textContent = e.target.value + '°';
+      renderGradient();
+    });
+
+    // Add Stop Button
+    addStopBtn.addEventListener('click', () => {
+      // Pick a color/position in between to be helpful, or just default
+      stops.push({ id: Date.now(), hex: '#3b82f6', alpha: 50, pos: 50 });
+      renderStopsUI();
+      renderGradient();
+    });
+
+    // Event Delegation for Stop Inputs (Handles all generated cards dynamically)
+    stopsList.addEventListener('input', (e) => {
+      const card = e.target.closest('.stop-card');
+      if (!card) return;
+      
+      const id = parseInt(card.dataset.id);
+      const stop = stops.find(s => s.id === id);
+
+      if (e.target.classList.contains('stop-color')) {
+        stop.hex = e.target.value;
+        card.querySelector('.stop-hex').value = stop.hex;
+      }
+      if (e.target.classList.contains('stop-hex')) {
+        let val = e.target.value;
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9A-F]{6}$/i.test(val)) {
+          stop.hex = val;
+          card.querySelector('.stop-color').value = val;
+        }
+      }
+      if (e.target.classList.contains('stop-pos')) {
+        stop.pos = parseInt(e.target.value);
+        card.querySelector('.stop-pos').previousElementSibling.querySelector('.val').textContent = stop.pos + '%';
+      }
+      if (e.target.classList.contains('stop-alpha')) {
+        stop.alpha = parseInt(e.target.value);
+        card.querySelector('.stop-alpha').previousElementSibling.querySelector('.val').textContent = stop.alpha + '%';
+      }
+      
+      renderGradient();
+    });
+
+    // Event Delegation for Delete Stop Button
+    stopsList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-btn')) {
+        const card = e.target.closest('.stop-card');
+        const id = parseInt(card.dataset.id);
+        
+        stops = stops.filter(s => s.id !== id);
+        renderStopsUI(); // Re-render UI to update "disabled" status on remaining buttons
+        renderGradient();
+      }
+    });
+
+    function downloadPNG() {
+      const link = document.createElement('a');
+      const ratioName = ratioSelect.options[ratioSelect.selectedIndex].text.split(' ')[0];
+      const typeName = typeSelect.value;
+      link.download = `pro-gradient-${typeName}-${ratioName.replace(':', 'x')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    // Initialize Page
+    renderStopsUI();
+    renderGradient();
+  </script>
+</body>
+</html>
