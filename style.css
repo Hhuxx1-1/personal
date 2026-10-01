@@ -376,6 +376,92 @@ p {
     border-radius: 8px;
 }
 
+/* Container styling */
+.small-webapp .webapp-content {
+    padding: 20px;
+    text-align: center;
+}
+
+.small-webapp h2 {
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+    color: #ffffff; /* Adjust based on your theme */
+}
+
+/* Grid layout for the buttons */
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+/* Beautiful Flex Button/Card */
+.app-btn {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.08); /* Light transparent background */
+    border: 1px solid rgba(255, 255, 255, 0.15); /* Subtle border */
+    border-radius: 16px;
+    padding: 16px 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Hover effects */
+.app-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-5px); /* Lifts the button up slightly */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Icon styling */
+.app-icon {
+    font-size: 2rem;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+
+/* Text Container inside button */
+.app-text {
+    text-align: left;
+}
+
+.app-text h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.app-text p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #b0b0b0; /* Softer text color for description */
+    line-height: 1.4;
+}
+
+/* Existing Glass Panel Base (just in case you need to tweak yours) */
+.glass-panel {
+    background: rgba(20, 20, 20, 0.4);
+    border-radius: 24px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 20px;
+}
+
 /* Responsive Design */
 @media (max-width: 800px) {
     .qr-layout {
