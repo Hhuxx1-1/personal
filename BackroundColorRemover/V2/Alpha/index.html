@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color to Alpha Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .transparency-grid {
+            background-color: #f0f0f0;
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        #canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 p-4 sm:p-8 flex items-center justify-center">
+
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 sm:p-10 flex flex-col gap-6">
+        <header class="text-center">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">Color to Alpha</h1>
+            <p class="text-gray-500">Remove black or white backgrounds to create transparent PNGs.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Controls Section -->
+            <div class="md:col-span-1 flex flex-col gap-5">
+                
+                <!-- Upload Button -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700 text-sm">1. Select Image</label>
+                    <label for="imageUpload" class="cursor-pointer bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 font-medium py-3 px-4 rounded-lg text-center transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Upload Image
+                    </label>
+                    <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg, image/webp" />
+                </div>
+
+                <!-- Color Selection -->
+                <div class="flex flex-col gap-2">
+                    <label class="font-semibold text-gray-700 text-sm">2. Target Color</label>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="colorMode" value="black" class="form-radio text-blue-600 w-4 h-4" checked>
+                            <span class="text-sm font-medium">Black to Alpha</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="colorMode" value="white" class="form-radio text-blue-600 w-4 h-4">
+                            <span class="text-sm font-medium">White to Alpha</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Download Button -->
+                <div class="flex flex-col gap-2 mt-auto">
+                    <label class="font-semibold text-gray-700 text-sm">3. Export</label>
+                    <button id="downloadBtn" class="bg-gray-300 text-gray-500 font-semibold py-3 px-4 rounded-lg cursor-not-allowed transition flex items-center justify-center gap-2" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Download PNG
+                    </button>
+                </div>
+            </div>
+
+            <!-- Canvas/Preview Section -->
+            <div class="md:col-span-2 flex flex-col relative min-h-[300px] border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-gray-50">
+                <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 z-10 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Image preview will appear here</span>
+                </div>
+                
+                <div id="canvasContainer" class="transparency-grid w-full h-full flex items-center justify-center p-4 hidden">
+                    <canvas id="canvas"></canvas>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const colorModes = document.querySelectorAll('input[name="colorMode"]');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const placeholder = document.getElementById('placeholder');
+        const canvasContainer = document.getElementById('canvasContainer');
+
+        let currentImage = null;
+
+        // Handle Image Upload
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImage = img;
+                    
+                    // Show canvas, hide placeholder
+                    placeholder.classList.add('hidden');
+                    canvasContainer.classList.remove('hidden');
+                    
+                    // Enable download button
+                    downloadBtn.disabled = false;
+                    downloadBtn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                    downloadBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700', 'cursor-pointer');
+
+                    processImage();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Handle Mode Switch
+        colorModes.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (currentImage) {
+                    processImage();
+                }
+            });
+        });
+
+        // Handle Download
+        downloadBtn.addEventListener('click', () => {
+            if (!currentImage) return;
+            const link = document.createElement('a');
+            link.download = 'processed_image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        function processImage() {
+            if (!currentImage) return;
+
+            // Setup canvas dimensions
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+
+            // Draw original image
+            ctx.drawImage(currentImage, 0, 0);
+
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            const mode = document.querySelector('input[name="colorMode"]:checked').value;
+
+            // Iterate over pixels
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i];
+                let g = data[i + 1];
+                let b = data[i + 2];
+                let a = data[i + 3];
+
+                let new_alpha = 0;
+
+                if (mode === 'black') {
+                    // Black to Alpha formula
+                    new_alpha = Math.max(r, g, b);
+                    if (new_alpha > 0) {
+                        r = Math.min(255, (r * 255) / new_alpha);
+                        g = Math.min(255, (g * 255) / new_alpha);
+                        b = Math.min(255, (b * 255) / new_alpha);
+                    } else {
+                        r = 0; g = 0; b = 0;
+                    }
+                } else if (mode === 'white') {
+                    // White to Alpha formula
+                    new_alpha = 255 - Math.min(r, g, b);
+                    if (new_alpha > 0) {
+                        r = Math.max(0, 255 - ((255 - r) * 255) / new_alpha);
+                        g = Math.max(0, 255 - ((255 - g) * 255) / new_alpha);
+                        b = Math.max(0, 255 - ((255 - b) * 255) / new_alpha);
+                    } else {
+                        r = 255; g = 255; b = 255;
+                    }
+                }
+
+                // Apply changes
+                data[i] = r;
+                data[i + 1] = g;
+                data[i + 2] = b;
+                
+                // Original alpha might be less than 255, so we combine the calculated alpha with it
+                data[i + 3] = (new_alpha * a) / 255;
+            }
+
+            // Put modified data back to canvas
+            ctx.putImageData(imageData, 0, 0);
+        }
+    </script>
+</body>
+</html>

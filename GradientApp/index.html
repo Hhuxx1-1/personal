@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pro Gradient to Transparent Generator</title>
+  <title>Pro Gradient Generator - Multi-Stop</title>
   <style>
     :root {
       --bg-color: #f4f4f5;
@@ -11,6 +11,9 @@
       --text-main: #18181b;
       --border-color: #e4e4e7;
       --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #fee2e2;
     }
     
     body {
@@ -19,10 +22,11 @@
       color: var(--text-main);
       display: flex;
       justify-content: center;
-      align-items: center;
+      /* Changed to flex-start with margin so tall panels don't get cut off at the top */
+      align-items: flex-start;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
+      padding: 40px 20px;
       box-sizing: border-box;
     }
 
@@ -60,9 +64,8 @@
       gap: 8px;
     }
 
-    /* Span full width for sliders so they are easier to use */
-    .full-width {
-      grid-column: 1 / -1;
+    .hidden {
+      display: none !important;
     }
 
     label {
@@ -74,12 +77,6 @@
     
     label span.val {
       color: var(--accent);
-    }
-
-    .input-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
     }
 
     input[type="text"], select {
@@ -113,6 +110,47 @@
       cursor: pointer;
     }
 
+    /* --- Multi-Stop CSS --- */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-top: 10px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stop-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stop-card {
+      background: #fafafa;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* --- Canvas & Buttons --- */
     .canvas-wrapper {
       width: 100%;
       display: flex;
@@ -125,7 +163,6 @@
 
     .canvas-container {
       width: 100%;
-      /* Aspect ratio set dynamically via JS */
       border: 1px solid var(--border-color);
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       background-image: 
@@ -151,18 +188,36 @@
       background-color: var(--accent);
       color: white;
       border: none;
-      padding: 12px 24px;
+      padding: 10px 16px;
       border-radius: 6px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.2s;
-      width: 100%;
+      transition: all 0.2s;
     }
 
-    button:hover {
-      background-color: #2563eb;
+    button:hover { background-color: var(--accent-hover); }
+
+    .btn-secondary {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      font-size: 0.9rem;
+      padding: 6px 12px;
     }
+    .btn-secondary:hover { background-color: var(--border-color); }
+
+    .btn-danger {
+      background-color: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .btn-danger:hover { background-color: var(--danger-hover); }
+    .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .primary-download { width: 100%; padding: 14px; font-size: 1.1rem; }
   </style>
 </head>
 <body>
@@ -170,16 +225,17 @@
   <div class="container">
     <div class="header">
       <h1>Pro Gradient Generator</h1>
-      <p>Configure stops, angles, and ratios. Exports as high-res PNG.</p>
+      <p>Unlimited stops. Independent transparency. Exact precision.</p>
     </div>
 
+    <!-- General Settings -->
     <div class="controls">
       <div class="control-group">
-        <label for="hexInput">Base Color (Hex)</label>
-        <div class="input-row">
-          <input type="color" id="colorPicker" value="#ef4444">
-          <input type="text" id="hexInput" value="#ef4444" maxlength="7">
-        </div>
+        <label for="typeSelect">Gradient Type</label>
+        <select id="typeSelect">
+          <option value="linear">Linear</option>
+          <option value="radial">Radial (Circle)</option>
+        </select>
       </div>
 
       <div class="control-group">
@@ -192,29 +248,41 @@
         </select>
       </div>
 
-      <div class="control-group full-width">
-        <label for="angleSlider">Direction <span class="val" id="angleValue">90°</span></label>
+      <!-- Linear Controls -->
+      <div class="control-group" id="linearConfig">
+        <label for="angleSlider">Angle <span class="val" id="angleValue">90°</span></label>
         <input type="range" id="angleSlider" min="0" max="360" value="90">
       </div>
 
-      <div class="control-group full-width">
-        <label for="solidStop">Solid Color Ends At <span class="val" id="solidValue">20%</span></label>
-        <input type="range" id="solidStop" min="0" max="100" value="20">
-      </div>
-
-      <div class="control-group full-width">
-        <label for="transStop">Full Transparency Starts At <span class="val" id="transValue">80%</span></label>
-        <input type="range" id="transStop" min="0" max="100" value="80">
+      <!-- Radial Controls (Hidden by default) -->
+      <div class="control-group hidden" id="radialConfig">
+        <label for="radialDirSelect">Radial Direction</label>
+        <select id="radialDirSelect">
+          <option value="in-out">Inner to Outer</option>
+          <option value="out-in">Outer to Inner</option>
+        </select>
       </div>
     </div>
 
+    <!-- Multi-Stop Configuration -->
+    <div>
+      <div class="section-title">
+        <span>Gradient Stops</span>
+        <button class="btn-secondary" id="addStopBtn">+ Add Stop</button>
+      </div>
+      <div class="stop-list" id="stopsList">
+        <!-- Stop Cards Generated by JS -->
+      </div>
+    </div>
+
+    <!-- Output -->
     <div class="canvas-wrapper">
       <div class="canvas-container" id="canvasContainer" style="aspect-ratio: 16/9;">
         <canvas id="gradientCanvas" width="1920" height="1080"></canvas>
       </div>
     </div>
 
-    <button onclick="downloadPNG()">Download Transparent PNG</button>
+    <button class="primary-download" onclick="downloadPNG()">Download Transparent PNG</button>
   </div>
 
   <script>
@@ -222,17 +290,23 @@
     const ctx = canvas.getContext('2d');
     const canvasContainer = document.getElementById('canvasContainer');
     
-    const hexInput = document.getElementById('hexInput');
-    const colorPicker = document.getElementById('colorPicker');
+    const typeSelect = document.getElementById('typeSelect');
     const ratioSelect = document.getElementById('ratioSelect');
+    const linearConfig = document.getElementById('linearConfig');
     const angleSlider = document.getElementById('angleSlider');
     const angleValue = document.getElementById('angleValue');
-    const solidStop = document.getElementById('solidStop');
-    const solidValue = document.getElementById('solidValue');
-    const transStop = document.getElementById('transStop');
-    const transValue = document.getElementById('transValue');
+    const radialConfig = document.getElementById('radialConfig');
+    const radialDirSelect = document.getElementById('radialDirSelect');
+    const stopsList = document.getElementById('stopsList');
+    const addStopBtn = document.getElementById('addStopBtn');
 
-    // Convert Hex to RGB object
+    // State Management for Unlimited Stops
+    // We start with 2 default stops
+    let stops = [
+      { id: Date.now(), hex: '#ef4444', alpha: 100, pos: 20 },
+      { id: Date.now() + 1, hex: '#ef4444', alpha: 0, pos: 80 }
+    ];
+
     function hexToRgb(hex) {
       hex = hex.replace(/^#/, '');
       if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
@@ -240,9 +314,39 @@
       return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
     }
 
-    // Main rendering function
+    // Render the Stop Settings UI
+    function renderStopsUI() {
+      stopsList.innerHTML = '';
+      stops.forEach((stop, index) => {
+        const isDeleteDisabled = stops.length <= 2 ? 'disabled' : '';
+        
+        const card = document.createElement('div');
+        card.className = 'stop-card';
+        card.dataset.id = stop.id;
+        
+        card.innerHTML = `
+          <div class="stop-header">
+            <div class="input-row">
+              <input type="color" class="stop-color" value="${stop.hex}">
+              <input type="text" class="stop-hex" value="${stop.hex}" maxlength="7" style="width: 100px;">
+            </div>
+            <button class="btn-danger remove-btn" ${isDeleteDisabled}>Remove</button>
+          </div>
+          <div class="control-group">
+            <label>Position <span class="val">${stop.pos}%</span></label>
+            <input type="range" class="stop-pos" min="0" max="100" value="${stop.pos}">
+          </div>
+          <div class="control-group">
+            <label>Opacity <span class="val">${stop.alpha}%</span></label>
+            <input type="range" class="stop-alpha" min="0" max="100" value="${stop.alpha}">
+          </div>
+        `;
+        stopsList.appendChild(card);
+      });
+    }
+
+    // Main rendering function for the Canvas
     function renderGradient() {
-      // Set canvas size based on ratio select
       const [w, h] = ratioSelect.value.split('x').map(Number);
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
@@ -250,99 +354,134 @@
         canvasContainer.style.aspectRatio = `${w} / ${h}`;
       }
 
-      const width = canvas.width;
-      const height = canvas.height;
-      const hex = hexInput.value;
-      const angle = parseInt(angleSlider.value);
-      const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+      ctx.clearRect(0, 0, w, h);
       
-      const sStop = parseInt(solidStop.value) / 100;
-      const tStop = parseInt(transStop.value) / 100;
+      const gradientType = typeSelect.value;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      let gradient;
 
-      // Clear the canvas
-      ctx.clearRect(0, 0, width, height);
+      if (gradientType === 'linear') {
+        const angle = parseInt(angleSlider.value);
+        const rad = (angle - 90) * (Math.PI / 180);
+        const distance = Math.abs((w / 2) * Math.cos(rad)) + Math.abs((h / 2) * Math.sin(rad));
+        
+        const x0 = centerX - Math.cos(rad) * distance;
+        const y0 = centerY - Math.sin(rad) * distance;
+        const x1 = centerX + Math.cos(rad) * distance;
+        const y1 = centerY + Math.sin(rad) * distance;
 
-      // Advanced Math: Exact distance to edges (mimics CSS linear-gradient behavior)
-      const rad = (angle - 90) * (Math.PI / 180);
-      const distance = Math.abs((width / 2) * Math.cos(rad)) + Math.abs((height / 2) * Math.sin(rad));
+        gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+      } else {
+        const maxRadius = Math.hypot(centerX, centerY);
+        const direction = radialDirSelect.value;
+        
+        // Handle Inner-to-Outer vs Outer-to-Inner mathematically
+        if (direction === 'in-out') {
+          gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
+        } else {
+          gradient = ctx.createRadialGradient(centerX, centerY, maxRadius, centerX, centerY, 0);
+        }
+      }
+
+      // Sort stops mathematically by position (required by canvas API)
+      const sortedStops = [...stops].sort((a, b) => a.pos - b.pos);
       
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      const x0 = centerX - Math.cos(rad) * distance;
-      const y0 = centerY - Math.sin(rad) * distance;
-      const x1 = centerX + Math.cos(rad) * distance;
-      const y1 = centerY + Math.sin(rad) * distance;
-
-      // Create and apply gradient
-      const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
-      
-      // Stop 1: Hard edge at 0%
-      gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
-      // Stop 2: Solid color continues until user's solid limit
-      gradient.addColorStop(sStop, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
-      // Stop 3: Fade finishes at user's transparent limit
-      gradient.addColorStop(tStop, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
-      // Stop 4: Remains transparent until 100%
-      gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+      sortedStops.forEach(stop => {
+        const rgb = hexToRgb(stop.hex) || { r: 0, g: 0, b: 0 };
+        const positionFixed = Math.max(0, Math.min(1, stop.pos / 100)); // Clamp between 0 and 1
+        gradient.addColorStop(positionFixed, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${stop.alpha / 100})`);
+      });
 
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, w, h);
     }
 
-    // Download logic
-    function downloadPNG() {
-      const link = document.createElement('a');
-      const ratioName = ratioSelect.options[ratioSelect.selectedIndex].text.split(' ')[0];
-      link.download = `gradient-${hexInput.value.replace('#', '')}-${ratioName.replace(':', 'x')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
+    // --- Event Listeners ---
 
-    // UX Logic: Prevent sliders from crossing each other
-    solidStop.addEventListener('input', (e) => {
-      let val = parseInt(e.target.value);
-      if (val > parseInt(transStop.value)) {
-        transStop.value = val;
-        transValue.textContent = val + '%';
+    // Toggle Linear vs Radial Options
+    typeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'radial') {
+        linearConfig.classList.add('hidden');
+        radialConfig.classList.remove('hidden');
+      } else {
+        linearConfig.classList.remove('hidden');
+        radialConfig.classList.add('hidden');
       }
-      solidValue.textContent = val + '%';
       renderGradient();
     });
 
-    transStop.addEventListener('input', (e) => {
-      let val = parseInt(e.target.value);
-      if (val < parseInt(solidStop.value)) {
-        solidStop.value = val;
-        solidValue.textContent = val + '%';
-      }
-      transValue.textContent = val + '%';
-      renderGradient();
-    });
-
-    // Standard Event Listeners
-    colorPicker.addEventListener('input', (e) => {
-      hexInput.value = e.target.value;
-      renderGradient();
-    });
-
-    hexInput.addEventListener('input', (e) => {
-      let val = e.target.value;
-      if (!val.startsWith('#')) val = '#' + val;
-      if (/^#[0-9A-F]{6}$/i.test(val)) {
-        colorPicker.value = val;
-        renderGradient();
-      }
-    });
-
+    ratioSelect.addEventListener('change', renderGradient);
+    radialDirSelect.addEventListener('change', renderGradient);
+    
     angleSlider.addEventListener('input', (e) => {
       angleValue.textContent = e.target.value + '°';
       renderGradient();
     });
 
-    ratioSelect.addEventListener('change', renderGradient);
+    // Add Stop Button
+    addStopBtn.addEventListener('click', () => {
+      // Pick a color/position in between to be helpful, or just default
+      stops.push({ id: Date.now(), hex: '#3b82f6', alpha: 50, pos: 50 });
+      renderStopsUI();
+      renderGradient();
+    });
 
-    // Initial render on page load
+    // Event Delegation for Stop Inputs (Handles all generated cards dynamically)
+    stopsList.addEventListener('input', (e) => {
+      const card = e.target.closest('.stop-card');
+      if (!card) return;
+      
+      const id = parseInt(card.dataset.id);
+      const stop = stops.find(s => s.id === id);
+
+      if (e.target.classList.contains('stop-color')) {
+        stop.hex = e.target.value;
+        card.querySelector('.stop-hex').value = stop.hex;
+      }
+      if (e.target.classList.contains('stop-hex')) {
+        let val = e.target.value;
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9A-F]{6}$/i.test(val)) {
+          stop.hex = val;
+          card.querySelector('.stop-color').value = val;
+        }
+      }
+      if (e.target.classList.contains('stop-pos')) {
+        stop.pos = parseInt(e.target.value);
+        card.querySelector('.stop-pos').previousElementSibling.querySelector('.val').textContent = stop.pos + '%';
+      }
+      if (e.target.classList.contains('stop-alpha')) {
+        stop.alpha = parseInt(e.target.value);
+        card.querySelector('.stop-alpha').previousElementSibling.querySelector('.val').textContent = stop.alpha + '%';
+      }
+      
+      renderGradient();
+    });
+
+    // Event Delegation for Delete Stop Button
+    stopsList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-btn')) {
+        const card = e.target.closest('.stop-card');
+        const id = parseInt(card.dataset.id);
+        
+        stops = stops.filter(s => s.id !== id);
+        renderStopsUI(); // Re-render UI to update "disabled" status on remaining buttons
+        renderGradient();
+      }
+    });
+
+    function downloadPNG() {
+      const link = document.createElement('a');
+      const ratioName = ratioSelect.options[ratioSelect.selectedIndex].text.split(' ')[0];
+      const typeName = typeSelect.value;
+      link.download = `pro-gradient-${typeName}-${ratioName.replace(':', 'x')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    // Initialize Page
+    renderStopsUI();
     renderGradient();
   </script>
 </body>
