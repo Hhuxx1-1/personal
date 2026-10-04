@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Studio 2D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; user-select: none; }
+        .canvas-container {
+            background-image: 
+                linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #0f172a;
+        }
+        canvas { display: block; cursor: crosshair; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .tool-btn { @apply p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors flex items-center justify-center; }
+        .tool-btn.active { @apply bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]; }
+        
+        input[type="color"] { -webkit-appearance: none; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; padding: 0; background: none;}
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 1px solid #475569; border-radius: 4px; }
+        
+        input[type="range"] { accent-color: #2563eb; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 z-10 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg">V</div>
+            <h1 class="font-semibold tracking-wide text-sm">Vector Studio <span class="text-slate-500 font-normal">2D</span></h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="btn-export" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                Export PNG
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-2 shrink-0 z-10 shadow-xl relative">
+            <button class="tool-btn active" data-tool="select" title="Select / Move Shape (V)">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+            </button>
+            <button class="tool-btn" data-tool="edit" title="Node Edit / Vertices (A)">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path></svg>
+            </button>
+            <button class="tool-btn" data-tool="pen" title="Pen Tool (P)">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+            <div class="w-8 h-px bg-slate-700 my-2"></div>
+            <button class="tool-btn text-red-400 hover:text-red-300 hover:bg-red-900/30" id="btn-delete" title="Delete Selected (Del)">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </aside>
+
+        <main class="flex-1 relative canvas-container" id="workspace">
+            <canvas id="main-canvas" class="absolute inset-0 w-full h-full"></canvas>
+            
+            <!-- Contextual Tooltip/Helper -->
+            <div id="helper-text" class="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded pointer-events-none">
+                Select a shape to edit its properties.
+            </div>
+        </main>
+
+        <aside class="w-72 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-10 shadow-xl overflow-y-auto">
+            <div id="empty-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
+                <svg class="w-12 h-12 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+                <p class="text-sm">Select an object to modify properties.</p>
+            </div>
+
+            <div id="properties-panel" class="hidden flex-col w-full pb-8">
+                <div class="p-4 border-b border-slate-800 bg-slate-800/30">
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Appearance</h2>
+                </div>
+
+                <!-- Fill Settings -->
+                <div class="p-4 border-b border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-slate-300 font-medium">Fill</span>
+                        <select id="prop-fill-type" class="bg-slate-800 border border-slate-700 text-xs text-slate-200 rounded p-1 outline-none focus:border-blue-500">
+                            <option value="solid">Solid Color</option>
+                            <option value="texture">Image Texture</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <div id="fill-color-group" class="flex items-center gap-3">
+                        <input type="color" id="prop-fill-color" value="#3b82f6">
+                        <input type="text" id="prop-fill-hex" class="flex-1 bg-slate-800 border border-slate-700 text-sm text-slate-200 p-1.5 rounded outline-none focus:border-blue-500 font-mono" value="#3b82f6">
+                    </div>
+
+                    <div id="fill-texture-group" class="hidden space-y-2">
+                        <label class="block text-xs text-slate-400">Upload Texture Image</label>
+                        <input type="file" id="prop-fill-image" accept="image/*" class="block w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Stroke Settings -->
+                <div class="p-4 border-b border-slate-800 space-y-4">
+                    <h3 class="text-sm text-slate-300 font-medium">Stroke</h3>
+                    <div class="flex items-center gap-3">
+                        <input type="color" id="prop-stroke-color" value="#ffffff">
+                        <div class="flex-1 flex items-center bg-slate-800 border border-slate-700 rounded overflow-hidden focus-within:border-blue-500">
+                            <span class="px-2 text-xs text-slate-500 border-r border-slate-700">W</span>
+                            <input type="number" id="prop-stroke-width" min="0" max="50" value="2" class="w-full bg-transparent text-sm text-slate-200 p-1.5 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modifiers: Shrink/Fatten (Extrude 2D) -->
+                <div class="p-4 border-b border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm text-slate-300 font-medium">Shrink / Fatten</h3>
+                        <span class="text-[10px] bg-indigo-900/50 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-700/50">Modifier</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-tight mb-2">Offsets vertices along their normals.</p>
+                    <div class="flex items-center gap-3">
+                        <input type="range" id="prop-fatten" min="-50" max="50" value="0" class="flex-1">
+                        <span id="prop-fatten-val" class="text-xs text-slate-400 font-mono w-6 text-right">0</span>
+                    </div>
+                    <button id="btn-apply-fatten" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-xs text-white rounded transition-colors">Apply Permanent Offset</button>
+                </div>
+
+                <!-- Node Properties (Only visible in Edit Mode on selected vertex) -->
+                <div id="node-properties" class="hidden p-4 bg-blue-900/10 border-b border-blue-900/30 space-y-3">
+                    <h3 class="text-sm text-blue-300 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        Selected Vertex
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn-make-line" class="py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 rounded transition-colors">Make Line</button>
+                        <button id="btn-make-curve" class="py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 rounded transition-colors">Make Curve</button>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // --- Core Math & Helpers ---
+        const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        
+        // Point in Polygon logic (Ray casting)
+        function pointInPolygon(point, vs) {
+            let x = point.x, y = point.y;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i].x, yi = vs[i].y;
+                let xj = vs[j].x, yj = vs[j].y;
+                let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // Calculate normals for Fatten/Shrink (Extrude)
+        function calculateVertexNormals(vertices, closed) {
+            const normals = [];
+            for (let i = 0; i < vertices.length; i++) {
+                let prevIdx = i === 0 ? (closed ? vertices.length - 1 : 0) : i - 1;
+                let nextIdx = i === vertices.length - 1 ? (closed ? 0 : i) : i + 1;
+                
+                let p0 = vertices[prevIdx];
+                let p1 = vertices[i];
+                let p2 = vertices[nextIdx];
+
+                // Edge vectors
+                let v1 = { x: p1.x - p0.x, y: p1.y - p0.y };
+                let v2 = { x: p2.x - p1.x, y: p2.y - p1.y };
+
+                // Normalize
+                let len1 = Math.hypot(v1.x, v1.y) || 1;
+                let len2 = Math.hypot(v2.x, v2.y) || 1;
+                v1 = { x: v1.x / len1, y: v1.y / len1 };
+                v2 = { x: v2.x / len2, y: v2.y / len2 };
+
+                // Edge normals (perpendicular)
+                let n1 = { x: -v1.y, y: v1.x };
+                let n2 = { x: -v2.y, y: v2.x };
+
+                // Average normal at vertex
+                let nx = n1.x + n2.x;
+                let ny = n1.y + n2.y;
+                let lenN = Math.hypot(nx, ny) || 1;
+                
+                if (i === 0 && !closed) {
+                    normals.push({ x: n2.x, y: n2.y });
+                } else if (i === vertices.length - 1 && !closed) {
+                    normals.push({ x: n1.x, y: n1.y });
+                } else {
+                    normals.push({ x: nx / lenN, y: ny / lenN });
+                }
+            }
+            return normals;
+        }
+
+        // --- Data Models ---
+        class Shape {
+            constructor() {
+                this.id = 'shape_' + Math.random().toString(36).substr(2, 9);
+                this.vertices = []; // {x, y, type: 'line'|'curve', cp1x, cp1y, cp2x, cp2y}
+                this.closed = false;
+                this.fill = { type: 'solid', color: '#3b82f6', textureImg: null };
+                this.stroke = { color: '#ffffff', width: 2 };
+                this.fattenOffset = 0; // Visual offset
+            }
+
+            getRenderVertices() {
+                if (this.fattenOffset === 0 || this.vertices.length < 2) return this.vertices;
+                // Apply normal offset for Shrink/Fatten
+                const normals = calculateVertexNormals(this.vertices, this.closed);
+                return this.vertices.map((v, i) => {
+                    const n = normals[i];
+                    return {
+                        ...v,
+                        x: v.x + n.x * this.fattenOffset,
+                        y: v.y + n.y * this.fattenOffset,
+                        // Naive control point offset (moves with vertex)
+                        cp1x: v.cp1x ? v.cp1x + n.x * this.fattenOffset : null,
+                        cp1y: v.cp1y ? v.cp1y + n.y * this.fattenOffset : null,
+                        cp2x: v.cp2x ? v.cp2x + n.x * this.fattenOffset : null,
+                        cp2y: v.cp2y ? v.cp2y + n.y * this.fattenOffset : null,
+                    };
+                });
+            }
+        }
+
+        class VectorEngine {
+            constructor() {
+                this.canvas = document.getElementById('main-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.shapes = [];
+                
+                // State
+                this.tool = 'select'; // 'select', 'edit', 'pen'
+                this.activeShape = null;
+                this.activeVertexIndex = -1;
+                this.activeControlPoint = null; // 'cp1' or 'cp2'
+                
+                this.isDrawing = false; // Pen tool state
+                this.isDragging = false; // Mouse drag state
+                
+                this.mouse = { x: 0, y: 0 };
+                this.dragStart = { x: 0, y: 0 };
+                this.dragOffset = { x: 0, y: 0 };
+                this.vertexDragOffsets = []; // For moving whole shapes
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                this.bindEvents();
+                this.loop();
+            }
+
+            resize() {
+                const rect = this.canvas.parentElement.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                this.render();
+            }
+
+            setTool(tool) {
+                this.tool = tool;
+                if (tool !== 'pen' && this.isDrawing) {
+                    this.isDrawing = false;
+                    if (this.activeShape && this.activeShape.vertices.length < 2) {
+                        this.shapes.pop();
+                        this.activeShape = null;
+                    }
+                }
+                if (tool !== 'edit') {
+                    this.activeVertexIndex = -1;
+                }
+                updateUIHelper();
+                updatePropertiesPanel(this.activeShape, this.activeVertexIndex);
+                this.render();
+            }
+
+            // --- Event Handling ---
+            bindEvents() {
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+                
+                window.addEventListener('keydown', (e) => {
+                    if(e.key === 'Delete' || e.key === 'Backspace') {
+                        if(document.activeElement.tagName === 'INPUT') return;
+                        if(this.activeVertexIndex > -1 && this.activeShape && this.tool === 'edit') {
+                            this.activeShape.vertices.splice(this.activeVertexIndex, 1);
+                            if(this.activeShape.vertices.length < 2) {
+                                this.shapes = this.shapes.filter(s => s.id !== this.activeShape.id);
+                                this.activeShape = null;
+                            }
+                            this.activeVertexIndex = -1;
+                            this.render();
+                        } else if(this.activeShape) {
+                            this.shapes = this.shapes.filter(s => s.id !== this.activeShape.id);
+                            this.activeShape = null;
+                            updatePropertiesPanel(null);
+                            this.render();
+                        }
+                    }
+                    // Shortcuts
+                    if(document.activeElement.tagName !== 'INPUT') {
+                        if(e.key.toLowerCase() === 'v') document.querySelector('[data-tool="select"]').click();
+                        if(e.key.toLowerCase() === 'a') document.querySelector('[data-tool="edit"]').click();
+                        if(e.key.toLowerCase() === 'p') document.querySelector('[data-tool="pen"]').click();
+                    }
+                });
+            }
+
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+
+            onMouseDown(e) {
+                const pos = this.getMousePos(e);
+                this.mouse = pos;
+                this.dragStart = { ...pos };
+                this.isDragging = true;
+
+                if (this.tool === 'pen') {
+                    if (!this.isDrawing) {
+                        this.isDrawing = true;
+                        this.activeShape = new Shape();
+                        this.activeShape.fill.type = 'none'; // Default to line when drawing
+                        this.activeShape.vertices.push({ x: pos.x, y: pos.y, type: 'line' });
+                        this.shapes.push(this.activeShape);
+                        updatePropertiesPanel(this.activeShape);
+                    } else {
+                        // Check if clicking near start point to close shape
+                        const startPoint = this.activeShape.vertices[0];
+                        if (this.activeShape.vertices.length > 2 && dist(pos, startPoint) < 10) {
+                            this.activeShape.closed = true;
+                            this.isDrawing = false;
+                            this.setTool('select');
+                            document.querySelector('[data-tool="select"]').classList.add('active');
+                            document.querySelector('[data-tool="pen"]').classList.remove('active');
+                        } else {
+                            this.activeShape.vertices.push({ x: pos.x, y: pos.y, type: 'line' });
+                        }
+                    }
+                    this.render();
+                    return;
+                }
+
+                if (this.tool === 'edit' && this.activeShape) {
+                    // Check handles first
+                    let hitHandle = false;
+                    if (this.activeVertexIndex > -1) {
+                        const v = this.activeShape.getRenderVertices()[this.activeVertexIndex];
+                        if (v.type === 'curve') {
+                            if (dist(pos, {x: v.cp1x, y: v.cp1y}) < 8) {
+                                this.activeControlPoint = 'cp1'; hitHandle = true;
+                            } else if (dist(pos, {x: v.cp2x, y: v.cp2y}) < 8) {
+                                this.activeControlPoint = 'cp2'; hitHandle = true;
+                            }
+                        }
+                    }
+
+                    if (!hitHandle) {
+                        // Check vertices
+                        const rVerts = this.activeShape.getRenderVertices();
+                        let foundIdx = -1;
+                        for (let i = 0; i < rVerts.length; i++) {
+                            if (dist(pos, rVerts[i]) < 8) {
+                                foundIdx = i; break;
+                            }
+                        }
+                        this.activeVertexIndex = foundIdx;
+                        this.activeControlPoint = null;
+                        updatePropertiesPanel(this.activeShape, this.activeVertexIndex);
+                    }
+                    this.render();
+                    return;
+                }
+
+                if (this.tool === 'select') {
+                    // Select object by path bounding/fill
+                    let foundShape = null;
+                    // Reverse loop to pick top-most
+                    for (let i = this.shapes.length - 1; i >= 0; i--) {
+                        const shape = this.shapes[i];
+                        const rVerts = shape.getRenderVertices();
+                        if (shape.closed) {
+                            if (pointInPolygon(pos, rVerts)) {
+                                foundShape = shape; break;
+                            }
+                        } else {
+                            // Rough hit test for lines (bounding box of segments)
+                            for(let j=0; j < rVerts.length - 1; j++) {
+                                const p1 = rVerts[j], p2 = rVerts[j+1];
+                                // simple distance to line segment
+                                const l2 = dist(p1, p2)**2;
+                                if(l2 === 0) continue;
+                                let t = ((pos.x - p1.x)*(p2.x - p1.x) + (pos.y - p1.y)*(p2.y - p1.y)) / l2;
+                                t = Math.max(0, Math.min(1, t));
+                                const proj = { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+                                if(dist(pos, proj) < 10) { foundShape = shape; break; }
+                            }
+                            if(foundShape) break;
+                        }
+                    }
+
+                    if (foundShape !== this.activeShape) {
+                        this.activeShape = foundShape;
+                        this.activeVertexIndex = -1;
+                        updatePropertiesPanel(this.activeShape);
+                    }
+
+                    if (this.activeShape) {
+                        // Pre-calculate drag offsets for all vertices
+                        const rVerts = this.activeShape.vertices; // modify original verts
+                        this.vertexDragOffsets = rVerts.map(v => ({ dx: v.x - pos.x, dy: v.y - pos.y }));
+                        // also for CPs
+                        this.cpDragOffsets = rVerts.map(v => ({
+                            cp1dx: v.cp1x ? v.cp1x - pos.x : 0, cp1dy: v.cp1y ? v.cp1y - pos.y : 0,
+                            cp2dx: v.cp2x ? v.cp2x - pos.x : 0, cp2dy: v.cp2y ? v.cp2y - pos.y : 0
+                        }));
+                    }
+                    this.render();
+                }
+            }
+
+            onMouseMove(e) {
+                const pos = this.getMousePos(e);
+                this.mouse = pos;
+
+                if (this.isDrawing && this.tool === 'pen') {
+                    this.render(); // update preview line
+                    return;
+                }
+
+                if (this.isDragging) {
+                    if (this.tool === 'edit' && this.activeShape && this.activeVertexIndex > -1) {
+                        const v = this.activeShape.vertices[this.activeVertexIndex];
+                        if (this.activeControlPoint === 'cp1') {
+                            v.cp1x = pos.x; v.cp1y = pos.y;
+                        } else if (this.activeControlPoint === 'cp2') {
+                            v.cp2x = pos.x; v.cp2y = pos.y;
+                        } else {
+                            // Move vertex
+                            const dx = pos.x - this.dragStart.x;
+                            const dy = pos.y - this.dragStart.y;
+                            v.x += dx; v.y += dy;
+                            // move control points with it
+                            if(v.cp1x) { v.cp1x += dx; v.cp1y += dy; }
+                            if(v.cp2x) { v.cp2x += dx; v.cp2y += dy; }
+                            this.dragStart = { ...pos };
+                        }
+                        this.render();
+                    } else if (this.tool === 'select' && this.activeShape) {
+                        // Move whole shape
+                        this.activeShape.vertices.forEach((v, i) => {
+                            v.x = pos.x + this.vertexDragOffsets[i].dx;
+                            v.y = pos.y + this.vertexDragOffsets[i].dy;
+                            if(v.cp1x) {
+                                v.cp1x = pos.x + this.cpDragOffsets[i].cp1dx;
+                                v.cp1y = pos.y + this.cpDragOffsets[i].cp1dy;
+                            }
+                            if(v.cp2x) {
+                                v.cp2x = pos.x + this.cpDragOffsets[i].cp2dx;
+                                v.cp2y = pos.y + this.cpDragOffsets[i].cp2dy;
+                            }
+                        });
+                        this.render();
+                    }
+                }
+            }
+
+            onMouseUp(e) {
+                this.isDragging = false;
+                this.activeControlPoint = null;
+            }
+
+            onDoubleClick(e) {
+                if (this.tool === 'edit' && this.activeShape && this.activeVertexIndex > -1) {
+                    const v = this.activeShape.vertices[this.activeVertexIndex];
+                    toggleVertexType(v, this.activeShape.vertices, this.activeVertexIndex);
+                    updatePropertiesPanel(this.activeShape, this.activeVertexIndex);
+                    this.render();
+                }
+            }
+
+            render() {
+                // Clear Canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw Shapes
+                this.shapes.forEach(shape => {
+                    const verts = shape.getRenderVertices();
+                    if (verts.length === 0) return;
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(verts[0].x, verts[0].y);
+
+                    for (let i = 1; i < verts.length; i++) {
+                        const v = verts[i];
+                        if (v.type === 'curve' && v.cp1x && v.cp2x) {
+                            this.ctx.bezierCurveTo(v.cp1x, v.cp1y, v.cp2x, v.cp2y, v.x, v.y);
+                        } else {
+                            this.ctx.lineTo(v.x, v.y);
+                        }
+                    }
+
+                    if (shape.closed) {
+                        this.ctx.closePath();
+                    }
+
+                    // Fills
+                    if (shape.fill.type !== 'none') {
+                        if (shape.fill.type === 'solid') {
+                            this.ctx.fillStyle = shape.fill.color;
+                            this.ctx.fill();
+                        } else if (shape.fill.type === 'texture' && shape.fill.textureImg) {
+                            const pattern = this.ctx.createPattern(shape.fill.textureImg, 'repeat');
+                            if(pattern) {
+                                this.ctx.fillStyle = pattern;
+                                this.ctx.fill();
+                            }
+                        }
+                    }
+
+                    // Stroke
+                    if (shape.stroke.width > 0) {
+                        this.ctx.strokeStyle = shape.stroke.color;
+                        this.ctx.lineWidth = shape.stroke.width;
+                        this.ctx.lineJoin = 'round';
+                        this.ctx.lineCap = 'round';
+                        this.ctx.stroke();
+                    }
+                    
+                    // Selection Highlights
+                    if (shape === this.activeShape) {
+                        this.ctx.strokeStyle = '#3b82f6';
+                        this.ctx.lineWidth = 1;
+                        this.ctx.setLineDash([5, 5]);
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+                });
+
+                // Draw Pen Tool Preview
+                if (this.isDrawing && this.tool === 'pen' && this.activeShape && this.activeShape.vertices.length > 0) {
+                    const lastV = this.activeShape.vertices[this.activeShape.vertices.length - 1];
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(lastV.x, lastV.y);
+                    this.ctx.lineTo(this.mouse.x, this.mouse.y);
+                    this.ctx.strokeStyle = '#60a5fa';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([4, 4]);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                }
+
+                // Draw Nodes/Handles if in Edit Mode
+                if (this.tool === 'edit' && this.activeShape) {
+                    const verts = this.activeShape.getRenderVertices();
+                    
+                    verts.forEach((v, i) => {
+                        // Draw control points if selected or if it's a curve
+                        if (v.type === 'curve' && (i === this.activeVertexIndex)) {
+                            this.ctx.strokeStyle = '#94a3b8';
+                            this.ctx.lineWidth = 1;
+                            
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(verts[i-1] ? verts[i-1].x : verts[verts.length-1].x, verts[i-1] ? verts[i-1].y : verts[verts.length-1].y);
+                            this.ctx.lineTo(v.cp1x, v.cp1y);
+                            this.ctx.stroke();
+
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(v.x, v.y);
+                            this.ctx.lineTo(v.cp2x, v.cp2y);
+                            this.ctx.stroke();
+
+                            // CP handles
+                            this.ctx.fillStyle = '#f87171'; // Red for handles
+                            this.ctx.fillRect(v.cp1x - 4, v.cp1y - 4, 8, 8);
+                            this.ctx.fillRect(v.cp2x - 4, v.cp2y - 4, 8, 8);
+                        }
+
+                        // Draw main vertex node
+                        this.ctx.fillStyle = i === this.activeVertexIndex ? '#3b82f6' : '#ffffff';
+                        this.ctx.strokeStyle = '#1e293b';
+                        this.ctx.lineWidth = 2;
+                        
+                        this.ctx.beginPath();
+                        if (v.type === 'curve') {
+                            this.ctx.arc(v.x, v.y, 5, 0, Math.PI * 2);
+                        } else {
+                            this.ctx.rect(v.x - 4, v.y - 4, 8, 8);
+                        }
+                        this.ctx.fill();
+                        this.ctx.stroke();
+                    });
+                }
+            }
+
+            loop() {
+                // Animation loop if needed, but we render on event.
+                // requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        // --- Controller / UI Binding ---
+        const engine = new VectorEngine();
+
+        
+        // Toolbar
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                engine.setTool(e.currentTarget.dataset.tool);
+            });
+        });
+        
+        document.getElementById('btn-delete').addEventListener('click', () => {
+            window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Delete'}));
+        });
+
+        const helperText = document.getElementById('helper-text');
+        function updateUIHelper() {
+            if (engine.tool === 'select') helperText.innerText = "Click shape to select. Drag to move.";
+            else if (engine.tool === 'edit') helperText.innerText = "Click vertex to select. Dbl-click to toggle curve. Drag to move.";
+            else if (engine.tool === 'pen') helperText.innerText = "Click to add points. Click start point to close shape.";
+        }
+        updateUIHelper();
+
+        // Properties Panel Elements
+        const panelEmpty = document.getElementById('empty-state');
+        const panelProps = document.getElementById('properties-panel');
+        const nodeProps = document.getElementById('node-properties');
+        
+        const propFillType = document.getElementById('prop-fill-type');
+        const grpFillColor = document.getElementById('fill-color-group');
+        const grpFillTex = document.getElementById('fill-texture-group');
+        const propFillColor = document.getElementById('prop-fill-color');
+        const propFillHex = document.getElementById('prop-fill-hex');
+        const propFillImage = document.getElementById('prop-fill-image');
+        
+        const propStrokeColor = document.getElementById('prop-stroke-color');
+        const propStrokeWidth = document.getElementById('prop-stroke-width');
+        
+        const propFatten = document.getElementById('prop-fatten');
+        const propFattenVal = document.getElementById('prop-fatten-val');
+        const btnApplyFatten = document.getElementById('btn-apply-fatten');
+
+        function updatePropertiesPanel(shape, activeVertexIdx = -1) {
+            if (!shape) {
+                panelEmpty.classList.remove('hidden');
+                panelProps.classList.add('hidden');
+                return;
+            }
+            panelEmpty.classList.add('hidden');
+            panelProps.classList.remove('hidden');
+            panelProps.style.display = 'flex';
+
+            // Fill
+            propFillType.value = shape.fill.type;
+            toggleFillGroups(shape.fill.type);
+            propFillColor.value = shape.fill.color;
+            propFillHex.value = shape.fill.color;
+            
+            // Stroke
+            propStrokeColor.value = shape.stroke.color;
+            propStrokeWidth.value = shape.stroke.width;
+            
+            // Modifier
+            propFatten.value = shape.fattenOffset;
+            propFattenVal.innerText = shape.fattenOffset;
+
+            // Node Editing
+            if (engine.tool === 'edit' && activeVertexIdx > -1) {
+                nodeProps.classList.remove('hidden');
+            } else {
+                nodeProps.classList.add('hidden');
+            }
+        }
+
+        function toggleFillGroups(type) {
+            if (type === 'solid') {
+                grpFillColor.style.display = 'flex';
+                grpFillTex.style.display = 'none';
+            } else if (type === 'texture') {
+                grpFillColor.style.display = 'none';
+                grpFillTex.style.display = 'block';
+            } else {
+                grpFillColor.style.display = 'none';
+                grpFillTex.style.display = 'none';
+            }
+        }
+
+        // --- Bind Property Inputs ---
+        propFillType.addEventListener('change', (e) => {
+            if(engine.activeShape) {
+                engine.activeShape.fill.type = e.target.value;
+                toggleFillGroups(e.target.value);
+                engine.render();
+            }
+        });
+
+        propFillColor.addEventListener('input', (e) => {
+            if(engine.activeShape) {
+                engine.activeShape.fill.color = e.target.value;
+                propFillHex.value = e.target.value;
+                engine.render();
+            }
+        });
+        
+        propFillHex.addEventListener('change', (e) => {
+            if(engine.activeShape && /^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                engine.activeShape.fill.color = e.target.value;
+                propFillColor.value = e.target.value;
+                engine.render();
+            }
+        });
+
+        propFillImage.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(file && engine.activeShape) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        engine.activeShape.fill.textureImg = img;
+                        engine.render();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        propStrokeColor.addEventListener('input', (e) => {
+            if(engine.activeShape) { engine.activeShape.stroke.color = e.target.value; engine.render(); }
+        });
+        propStrokeWidth.addEventListener('input', (e) => {
+            if(engine.activeShape) { engine.activeShape.stroke.width = parseInt(e.target.value); engine.render(); }
+        });
+
+        propFatten.addEventListener('input', (e) => {
+            if(engine.activeShape) { 
+                engine.activeShape.fattenOffset = parseInt(e.target.value);
+                propFattenVal.innerText = e.target.value;
+                engine.render(); 
+            }
+        });
+
+        btnApplyFatten.addEventListener('click', () => {
+            if(engine.activeShape && engine.activeShape.fattenOffset !== 0) {
+                // Bake the modified vertices
+                engine.activeShape.vertices = engine.activeShape.getRenderVertices();
+                engine.activeShape.fattenOffset = 0;
+                propFatten.value = 0;
+                propFattenVal.innerText = 0;
+                engine.render();
+            }
+        });
+
+        // Node Type Toggle Logic
+        function toggleVertexType(v, verts, index) {
+            if (v.type === 'line') {
+                v.type = 'curve';
+                // Generate default control points based on neighbors
+                const prev = verts[index - 1] || verts[verts.length - 1];
+                v.cp1x = prev.x + (v.x - prev.x) * 0.5;
+                v.cp1y = prev.y + (v.y - prev.y) * 0.5;
+                v.cp2x = v.x + 30; // Arbitrary handles to start
+                v.cp2y = v.y - 30;
+            } else {
+                v.type = 'line';
+                delete v.cp1x; delete v.cp1y; delete v.cp2x; delete v.cp2y;
+            }
+        }
+
+        document.getElementById('btn-make-line').addEventListener('click', () => {
+            if(engine.activeShape && engine.activeVertexIndex > -1) {
+                const v = engine.activeShape.vertices[engine.activeVertexIndex];
+                if(v.type !== 'line') { toggleVertexType(v, engine.activeShape.vertices, engine.activeVertexIndex); engine.render(); }
+            }
+        });
+        document.getElementById('btn-make-curve').addEventListener('click', () => {
+            if(engine.activeShape && engine.activeVertexIndex > -1) {
+                const v = engine.activeShape.vertices[engine.activeVertexIndex];
+                if(v.type !== 'curve') { toggleVertexType(v, engine.activeShape.vertices, engine.activeVertexIndex); engine.render(); }
+            }
+        });
+
+        // --- Export logic ---
+        document.getElementById('btn-export').addEventListener('click', () => {
+            // Deselect to hide handles and borders
+            const prevShape = engine.activeShape;
+            const prevTool = engine.tool;
+            engine.activeShape = null;
+            engine.tool = 'select';
+            engine.render();
+
+            // Create temporary canvas trimmed to content bounds if possible, or just export whole canvas
+            const dataUrl = engine.canvas.toDataURL("image/png");
+            
+            const link = document.createElement('a');
+            link.download = 'vector-composition.png';
+            link.href = dataUrl;
+            link.click();
+
+            // Restore state
+            engine.activeShape = prevShape;
+            engine.tool = prevTool;
+            engine.render();
+        });
+
+        // Initial setup for demo
+        setTimeout(() => {
+            const demoShape = new Shape();
+            demoShape.closed = true;
+            demoShape.vertices = [
+                { x: 300, y: 200, type: 'line' },
+                { x: 500, y: 200, type: 'curve', cp1x: 400, cp1y: 100, cp2x: 450, cp2y: 150 },
+                { x: 400, y: 400, type: 'line' }
+            ];
+            demoShape.fill.color = '#8b5cf6';
+            engine.shapes.push(demoShape);
+            engine.render();
+        }, 100);
+
+    </script>
+</body>
+</html>
